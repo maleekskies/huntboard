@@ -1,23 +1,23 @@
 # Huntboard
 
 Personal job-hunt agent + apply dashboard. Paste your CV, add a job, get a
-tailored CV + cover letter + form answers — you review, then apply yourself.
+tailored CV, cover letter, and form answers. You review, then apply yourself.
 Nothing auto-submits.
 
 This is **Phase 0** from the build plan: manual job entry, kit generation,
 downloads, status tracking. Board scanning (RemoteOK/Remotive/Himalayas) is
-Phase 1 — the ingest endpoint is already wired for it, just not called yet.
+Phase 1. The ingest endpoint is already wired for it, just not called yet.
 
 ## Stack
 
-- Next.js 14.2.35 (App Router) on Vercel — free. Pinned to the 14.x line
-  (patched — 14.2.5 and earlier have a known RSC RCE, fixed in 14.2.35)
+- Next.js 14.2.35 (App Router) on Vercel (free). Pinned to the 14.x line
+  (patched: 14.2.5 and earlier have a known RSC RCE, fixed in 14.2.35)
   because `cookies()`/`headers()` are still synchronous there, which keeps
-  the Supabase server client simple. Next.js 15/16 made these async — if you
+  the Supabase server client simple. Next.js 15/16 made these async. If you
   upgrade later, `lib/supabase/server.ts` and `middleware.ts` both need
   `await cookies()` instead of the current sync call.
-- Supabase — Postgres + magic-link auth + (later) file storage — free tier
-- Groq — free LLM API for scoring, CV tailoring, cover letters
+- Supabase: Postgres, magic-link auth, and (later) file storage (free tier)
+- Groq: free LLM API for scoring, CV tailoring, and cover letters
 - `@react-pdf/renderer` for ATS-safe single-column PDF export
 
 ## Setup
@@ -44,7 +44,7 @@ Phase 1 — the ingest endpoint is already wired for it, just not called yet.
    npm install
    npm run dev
    ```
-   Visit http://localhost:3000 — you'll be redirected to `/login`, sign in
+   Visit http://localhost:3000. You'll be redirected to `/login`, sign in
    with a magic link sent to your email.
 
 5. **First use**
@@ -62,12 +62,12 @@ Vercel's project settings. Free Hobby tier covers this.
 
 ## Non-negotiable rules (baked into the prompts, not just docs)
 
-1. Never invent experience, titles, dates, metrics, or employers — the LLM
+1. Never invent experience, titles, dates, metrics, or employers. The LLM
    prompts in `lib/llm/prompts.ts` state this explicitly and are grounded
    only in `profile.master_cv_text`.
 2. Tailoring = reorder + rephrase real facts, never fabrication.
 3. Every kit stores a `facts_used` audit list, shown under the job detail page.
-4. Apply is always manual — "Open official apply page" opens the real URL,
+4. Apply is always manual. "Open official apply page" opens the real URL;
    there is no submit button anywhere in this app.
 5. CV/cover letter text lives in your own Supabase project. The only third
    party that sees it is Groq, when generating.
@@ -75,11 +75,11 @@ Vercel's project settings. Free Hobby tier covers this.
 ## What's not built yet (see the original handoff for the full roadmap)
 
 - **Phase 1**: automatic scanning of RemoteOK/Remotive/Himalayas/Arbeitnow/Jobicy
-  into the Inbox via `/api/ingest/jobs` (already accepts the payload — needs
+  into the Inbox via `/api/ingest/jobs` (already accepts the payload; needs
   a scanner script or GitHub Action to call it)
 - **Phase 2**: Greenhouse/Lever/Ashby ATS-aware packets, scheduled daily scans
 - **Phase 3 (optional)**: Playwright-assisted form fill with a confirm gate,
   email digests, STAR-story bank
 - Kanban drag-and-drop (currently tap-to-open, change status on the job page)
 - File storage for generated PDFs (currently generated on-demand, not persisted
-  to Supabase Storage — add this if you want a history of exact PDFs sent)
+  to Supabase Storage. Add this if you want a history of exact PDFs sent)

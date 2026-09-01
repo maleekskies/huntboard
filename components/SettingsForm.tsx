@@ -32,6 +32,7 @@ export default function SettingsForm({ profile, userId }: { profile: Profile | n
     (profile?.exclude_companies ?? []).join(', ')
   );
   const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
@@ -46,7 +47,12 @@ export default function SettingsForm({ profile, userId }: { profile: Profile | n
       updated_at: new Date().toISOString(),
     });
 
-    setStatus(error ? 'error' : 'saved');
+    if (error) {
+      setStatus('error');
+      setErrorMessage(error.message);
+    } else {
+      setStatus('saved');
+    }
   }
 
   function field(key: keyof Profile) {
@@ -70,7 +76,7 @@ export default function SettingsForm({ profile, userId }: { profile: Profile | n
 
       <div>
         <label className="block text-sm text-muted mb-1">
-          Target titles (comma-separated) — this drives what "Scan now" searches for
+          Target titles (comma-separated) - drives what "Scan now" searches for
         </label>
         <input
           className="w-full bg-surface border border-border rounded px-3 py-2 text-text focus:outline-none focus:border-accent"
@@ -82,7 +88,7 @@ export default function SettingsForm({ profile, userId }: { profile: Profile | n
 
       <div>
         <label className="block text-sm text-muted mb-1">
-          Excluded companies (comma-separated) — never shown, even if they'd match
+          Excluded companies (comma-separated) - never shown, even if they'd match
         </label>
         <input
           className="w-full bg-surface border border-border rounded px-3 py-2 text-text focus:outline-none focus:border-accent"
@@ -109,7 +115,7 @@ export default function SettingsForm({ profile, userId }: { profile: Profile | n
           {status === 'saving' ? 'Saving…' : 'Save settings'}
         </button>
         {status === 'saved' && <span className="text-good text-sm">Saved.</span>}
-        {status === 'error' && <span className="text-danger text-sm">Couldn't save — try again.</span>}
+        {status === 'error' && errorMessage && <span className="text-danger text-sm">{errorMessage}</span>}
       </div>
     </form>
   );

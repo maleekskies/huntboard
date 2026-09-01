@@ -9,7 +9,7 @@ export default async function SettingsPage() {
 
   const { data: profile } = await supabase
     .from('profile')
-    .select('*')
+    .select('name, email, phone, location, portfolio_url, linkedin_url, work_auth_notes, target_titles, exclude_companies')
     .eq('id', user!.id)
     .single();
 

@@ -3,17 +3,17 @@ import { createClient } from '@/lib/supabase/server';
 import { scanAllSources } from '@/lib/scan/sources';
 import { lexicalScore, isExcludedCompany } from '@/lib/scan/score';
 
-// POST /api/scan — the "Scan now" button. Pulls from every free board API,
+// POST /api/scan: the "Scan now" button. Pulls from every free board API,
 // scores each listing against the user's target titles, and upserts into
 // jobs. Deliberately does NOT touch `status` on jobs that already exist,
 // so a re-scan never resets something you already moved to Applied/Interview
-// back to New — only new listings get status: 'new'.
+// back to New. Only new listings get status: 'new'.
 const MAX_JOBS_PER_SCAN = 100;
 const MIN_SCORE_TO_KEEP = 15;
 const MAX_LISTING_AGE_DAYS = 7;
 
 function isWithinRecencyWindow(postedAt: string | null): boolean {
-  if (!postedAt) return true; // can't verify age — don't drop it over a missing field
+  if (!postedAt) return true; // can't verify age, don't drop it over a missing field
   const posted = new Date(postedAt).getTime();
   if (Number.isNaN(posted)) return true; // unparseable date, same reasoning
   const ageMs = Date.now() - posted;
@@ -59,8 +59,8 @@ export async function POST() {
 
   // Some boards occasionally list the same job twice (re-tagged categories,
   // pagination overlap). A single duplicate (source, source_id) pair inside
-  // one multi-row insert fails the WHOLE batch under the unique constraint —
-  // not just that row — so dedupe before anything else touches the DB.
+  // one multi-row insert fails the WHOLE batch under the unique constraint,
+  // not just that row, so dedupe before anything else touches the DB.
   const seen = new Map<string, (typeof scoredWithDupes)[number]>();
   for (const j of scoredWithDupes) {
     const key = `${j.source}:${j.source_id}`;
@@ -125,8 +125,8 @@ export async function POST() {
   }
 
   if (toUpdate.length > 0) {
-    // Status is deliberately never included here — updates refresh the
-    // listing's details/score only, existing pipeline progress is untouched.
+    // Status is deliberately never included here. Updates refresh the
+    // listing's details and score only; existing pipeline progress is untouched.
     const updates = await Promise.allSettled(
       toUpdate.map((j) => {
         const id = existingIdByKey.get(`${j.source}:${j.source_id}`);

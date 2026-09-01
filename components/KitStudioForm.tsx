@@ -16,6 +16,7 @@ export default function KitStudioForm({ profile, userId }: { profile: Profile | 
     proof_points: profile?.proof_points ?? '',
   });
   const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [saveErrorMessage, setSaveErrorMessage] = useState<string | null>(null);
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'error'>('idle');
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -40,9 +41,9 @@ export default function KitStudioForm({ profile, userId }: { profile: Profile | 
       }
       setForm((f) => ({ ...f, master_cv_text: data.text }));
       setUploadStatus('idle');
-    } catch {
+    } catch (err) {
       setUploadStatus('error');
-      setUploadError('Upload failed — try again.');
+      setUploadError(err instanceof Error ? err.message : 'Upload request failed to complete.');
     } finally {
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
@@ -59,7 +60,12 @@ export default function KitStudioForm({ profile, userId }: { profile: Profile | 
       updated_at: new Date().toISOString(),
     });
 
-    setStatus(error ? 'error' : 'saved');
+    if (error) {
+      setStatus('error');
+      setSaveErrorMessage(error.message);
+    } else {
+      setStatus('saved');
+    }
   }
 
   function field(key: keyof Profile) {
@@ -98,13 +104,13 @@ export default function KitStudioForm({ profile, userId }: { profile: Profile | 
         <textarea
           rows={16}
           className="w-full bg-surface border border-border rounded px-3 py-3 text-text font-mono text-sm focus:outline-none focus:border-accent"
-          placeholder="Paste your CV text here, or upload a PDF above — every generated kit pulls only from this."
+          placeholder="Paste your CV text here, or upload a PDF above. Every generated kit pulls only from this."
           {...field('master_cv_text')}
         />
       </div>
 
       <div>
-        <label className="block text-sm text-muted mb-1">Voice guide — how you actually sound</label>
+        <label className="block text-sm text-muted mb-1">Voice guide: how you actually sound</label>
         <textarea
           rows={3}
           className="w-full bg-surface border border-border rounded px-3 py-2 text-text focus:outline-none focus:border-accent"
@@ -115,12 +121,12 @@ export default function KitStudioForm({ profile, userId }: { profile: Profile | 
 
       <div>
         <label className="block text-sm text-muted mb-1">
-          Proof points / STAR stories — real wins, in your own words
+          Proof points / STAR stories: real wins, in your own words
         </label>
         <textarea
           rows={8}
           className="w-full bg-surface border border-border rounded px-3 py-2 text-text text-sm focus:outline-none focus:border-accent"
-          placeholder="One per line or paragraph — a project you shipped, a number you moved, a problem you solved. Cover letters draw on this for specifics beyond the CV."
+          placeholder="One per line or paragraph: a project you shipped, a number you moved, a problem you solved. Cover letters draw on this for specifics beyond the CV."
           {...field('proof_points')}
         />
       </div>
@@ -134,7 +140,9 @@ export default function KitStudioForm({ profile, userId }: { profile: Profile | 
           {status === 'saving' ? 'Saving…' : 'Save'}
         </button>
         {status === 'saved' && <span className="text-good text-sm">Saved.</span>}
-        {status === 'error' && <span className="text-danger text-sm">Couldn't save — try again.</span>}
+        {status === 'error' && saveErrorMessage && (
+          <span className="text-danger text-sm">{saveErrorMessage}</span>
+        )}
       </div>
     </form>
   );

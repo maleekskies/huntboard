@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
-// Force Node runtime — pdf-parse needs Node APIs not available on the Edge.
+// Force Node runtime: pdf-parse needs Node APIs not available on the Edge.
 export const runtime = 'nodejs';
 
 const MAX_SIZE_BYTES = 8 * 1024 * 1024; // 8MB, generous for a CV
@@ -25,7 +25,7 @@ export async function POST(request: Request) {
   }
 
   if (file.size > MAX_SIZE_BYTES) {
-    return NextResponse.json({ error: 'File too large — max 8MB' }, { status: 400 });
+    return NextResponse.json({ error: 'File too large (max 8MB)' }, { status: 400 });
   }
 
   try {
@@ -41,7 +41,7 @@ export async function POST(request: Request) {
     const text = result.text.trim();
     if (!text) {
       return NextResponse.json(
-        { error: "Couldn't extract text from that PDF — it may be a scanned image rather than real text." },
+        { error: "Couldn't extract text from that PDF. It may be a scanned image rather than real text." },
         { status: 422 }
       );
     }

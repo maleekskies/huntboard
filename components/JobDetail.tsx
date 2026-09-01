@@ -18,30 +18,47 @@ export default function JobDetail({ job, kit }: { job: Job; kit: Kit | null }) {
   async function handleGenerate() {
     setGenerating(true);
     setGenError(null);
-    const res = await fetch(`/api/jobs/${job.id}/generate-kit`, { method: 'POST' });
-    if (res.ok) {
-      router.refresh();
-    } else {
-      const body = await res.json().catch(() => ({}));
-      setGenError(body.error ?? 'Kit generation failed. Try again.');
+    try {
+      const res = await fetch(`/api/jobs/${job.id}/generate-kit`, { method: 'POST' });
+      if (res.ok) {
+        router.refresh();
+      } else {
+        const body = await res.json().catch(() => ({}));
+        setGenError(body.error ?? `Kit generation failed (${res.status}).`);
+      }
+    } catch (err) {
+      setGenError(err instanceof Error ? err.message : 'Kit generation request failed to complete.');
+    } finally {
+      setGenerating(false);
     }
-    setGenerating(false);
   }
+
+  const [statusError, setStatusError] = useState<string | null>(null);
 
   async function handleStatusChange(e: React.ChangeEvent<HTMLSelectElement>) {
     const supabase = createClient();
-    await supabase
+    const { error } = await supabase
       .from('jobs')
       .update({ status: e.target.value, updated_at: new Date().toISOString() })
       .eq('id', job.id);
-    router.refresh();
+    if (error) {
+      setStatusError(error.message);
+    } else {
+      setStatusError(null);
+      router.refresh();
+    }
   }
 
   async function handleCopyLetter() {
     if (!kit?.cover_letter) return;
-    await navigator.clipboard.writeText(kit.cover_letter);
-    setCopyLabel('Copied!');
-    setTimeout(() => setCopyLabel('Copy cover letter'), 1500);
+    try {
+      await navigator.clipboard.writeText(kit.cover_letter);
+      setCopyLabel('Copied!');
+      setTimeout(() => setCopyLabel('Copy cover letter'), 1500);
+    } catch {
+      setCopyLabel('Copy failed, select the text manually');
+      setTimeout(() => setCopyLabel('Copy cover letter'), 2000);
+    }
   }
 
   return (
@@ -54,17 +71,20 @@ export default function JobDetail({ job, kit }: { job: Job; kit: Kit | null }) {
             {job.location ? ` · ${job.location}` : ''}
           </p>
         </div>
-        <select
-          value={job.status}
-          onChange={handleStatusChange}
-          className="bg-surface border border-border rounded px-3 py-2 text-text text-sm self-start"
-        >
-          {STATUSES.map((s) => (
-            <option key={s} value={s}>
-              {s.replace('_', ' ')}
-            </option>
-          ))}
-        </select>
+        <div className="flex flex-col items-end gap-1">
+          <select
+            value={job.status}
+            onChange={handleStatusChange}
+            className="bg-surface border border-border rounded px-3 py-2 text-text text-sm self-start"
+          >
+            {STATUSES.map((s) => (
+              <option key={s} value={s}>
+                {s.replace('_', ' ')}
+              </option>
+            ))}
+          </select>
+          {statusError && <p className="text-danger text-xs">{statusError}</p>}
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-3 mb-6">

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
-// GET /api/jobs?status=&minScore=  — Inbox / Pipeline list, filterable.
+// GET /api/jobs?status=&minScore=: Inbox / Pipeline list, filterable.
 export async function GET(request: Request) {
   const supabase = createClient();
   const {
@@ -28,7 +28,7 @@ export async function GET(request: Request) {
   return NextResponse.json({ jobs: data });
 }
 
-// POST /api/jobs — the "paste job URL / paste JD" path from the handoff,
+// POST /api/jobs: the "paste job URL / paste JD" path from the handoff,
 // for LinkedIn and anything else we don't scrape.
 export async function POST(request: Request) {
   const supabase = createClient();

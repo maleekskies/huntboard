@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
-import type { Job, JobStatus } from '@/lib/types';
+import type { JobStatus } from '@/lib/types';
 import Link from 'next/link';
 
 const COLUMNS: { status: JobStatus; label: string }[] = [
@@ -20,20 +20,21 @@ export default async function PipelinePage() {
 
   const { data: jobs } = await supabase
     .from('jobs')
-    .select('*')
+    .select('id, title, company, status, updated_at')
     .eq('user_id', user!.id)
     .neq('status', 'ignored')
     .order('updated_at', { ascending: false });
 
-  const byStatus = (jobs ?? []).reduce<Record<string, Job[]>>((acc, job) => {
-    (acc[job.status] ??= []).push(job as Job);
+  type PipelineJob = NonNullable<typeof jobs>[number];
+  const byStatus = (jobs ?? []).reduce<Record<string, PipelineJob[]>>((acc, job) => {
+    (acc[job.status] ??= []).push(job);
     return acc;
   }, {});
 
   return (
     <div className="px-6 py-10 pb-24 md:pb-10">
       <h1 className="font-display text-3xl text-text mb-1">Pipeline</h1>
-      <p className="text-muted mb-8">Drag isn't wired up yet — tap a card to change its status.</p>
+      <p className="text-muted mb-8">Drag isn't wired up yet. Tap a card to change its status.</p>
 
       <div className="flex gap-4 overflow-x-auto pb-4">
         {COLUMNS.map((col) => (

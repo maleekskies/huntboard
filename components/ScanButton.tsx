@@ -26,8 +26,14 @@ export default function ScanButton() {
       const body = await res.json();
       setResult(body);
       if (res.ok) router.refresh();
-    } catch {
-      setResult({ found: 0, inserted: 0, updated: 0, sourceErrors: [], error: 'Scan failed — try again.' });
+    } catch (err) {
+      setResult({
+        found: 0,
+        inserted: 0,
+        updated: 0,
+        sourceErrors: [],
+        error: err instanceof Error ? err.message : 'Scan request failed to complete.',
+      });
     }
     setScanning(false);
   }
@@ -50,7 +56,7 @@ export default function ScanButton() {
             <p className="text-muted">{result.message}</p>
           ) : (
             <p className="text-muted">
-              Found {result.found} matches — <span className="text-good">{result.inserted} new</span>,{' '}
+              Found {result.found} matches, <span className="text-good">{result.inserted} new</span>,{' '}
               {result.updated} refreshed.
             </p>
           )}

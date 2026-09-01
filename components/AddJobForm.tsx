@@ -8,6 +8,7 @@ export default function AddJobForm() {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ title: '', company: '', url: '', location: '', description: '' });
   const [status, setStatus] = useState<'idle' | 'saving' | 'error'>('idle');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -23,7 +24,9 @@ export default function AddJobForm() {
       setForm({ title: '', company: '', url: '', location: '', description: '' });
       router.push(`/jobs/${job.id}`);
     } else {
+      const body = await res.json().catch(() => ({}));
       setStatus('error');
+      setErrorMessage(body.error ?? `Request failed (${res.status}).`);
     }
   }
 
@@ -94,7 +97,7 @@ export default function AddJobForm() {
         >
           Cancel
         </button>
-        {status === 'error' && <span className="text-danger text-sm">Couldn't add — try again.</span>}
+        {status === 'error' && errorMessage && <span className="text-danger text-sm">{errorMessage}</span>}
       </div>
     </form>
   );

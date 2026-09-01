@@ -3,9 +3,11 @@ import { createClient } from '@/lib/supabase/server';
 
 // POST /api/ingest/jobs
 // Body: { jobs: NormalizedJob[] }
-// Called by the scan worker (free_job_agent.py rewritten, a GitHub Action,
-// or an in-app route handler in Phase 1). Upserts on (user_id, source, source_id)
-// so re-scanning never creates duplicates. Not used yet in Phase 0.
+// Upserts on (user_id, source, source_id) so re-scanning never creates duplicates.
+// Originally scaffolded for an external scanner (a standalone Python script or
+// GitHub Action) to push jobs into. That path was never built: /api/scan does
+// its own fetching and upserting directly and never calls this route. Nothing
+// in this app currently calls this endpoint.
 export async function POST(request: Request) {
   const supabase = createClient();
   const {

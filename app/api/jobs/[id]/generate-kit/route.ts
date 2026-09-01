@@ -11,7 +11,7 @@ import {
 } from '@/lib/llm/prompts';
 import type { ScoreResult, FormAnswers } from '@/lib/types';
 
-// This is the "generate the kit when he opens the job" step from the handoff —
+// This is the "generate the kit when he opens the job" step from the handoff,
 // called lazily from the job detail page, not for every scanned listing, to
 // protect the free Groq quota.
 export async function POST(request: Request, { params }: { params: { id: string } }) {
@@ -43,7 +43,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
 
   if (profileError || !profile?.master_cv_text) {
     return NextResponse.json(
-      { error: 'No master CV on file yet — add one in Kit Studio first.' },
+      { error: 'No master CV on file yet. Add one in Kit Studio first.' },
       { status: 400 }
     );
   }
@@ -68,7 +68,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
     coverLetterUser(cvText, jobDescription, voiceGuide, proofPoints)
   );
 
-  // 4. Form packet — deterministic fields from profile, plus one generated field.
+  // 4. Form packet, deterministic fields from profile, plus one generated field.
   const formAnswers: FormAnswers = {
     name: profile.name ?? '',
     email: profile.email ?? '',

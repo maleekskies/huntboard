@@ -24,13 +24,11 @@ export default async function InboxPage() {
 
   return (
     <div className="px-6 py-10 pb-24 md:pb-10 max-w-3xl">
-      <div className="flex items-start justify-between gap-4 mb-6">
-        <div>
-          <h1 className="font-display text-3xl text-text mb-1">Inbox</h1>
-          <p className="text-muted">
-            {all.length ? `${all.length} jobs, sorted by fit.` : 'Nothing here yet — scan or add your first job.'}
-          </p>
-        </div>
+      <div className="mb-6">
+        <h1 className="font-display text-3xl text-text mb-1">Inbox</h1>
+        <p className="text-muted">
+          {all.length ? `${all.length} jobs, sorted by fit.` : 'Nothing here yet. Scan or add your first job.'}
+        </p>
       </div>
 
       <div className="flex gap-4 mb-6 flex-wrap">
@@ -44,9 +42,7 @@ export default async function InboxPage() {
         <AddJobForm />
       </div>
 
-      <div>
-        <JobList jobs={all} />
-      </div>
+      <JobList jobs={all} />
     </div>
   );
 }

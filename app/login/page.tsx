@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -17,7 +18,12 @@ export default function LoginPage() {
         emailRedirectTo: `${window.location.origin}/auth/callback`,
       },
     });
-    setStatus(error ? 'error' : 'sent');
+    if (error) {
+      setStatus('error');
+      setErrorMessage(error.message);
+    } else {
+      setStatus('sent');
+    }
   }
 
   return (
@@ -47,8 +53,8 @@ export default function LoginPage() {
             >
               {status === 'sending' ? 'Sending…' : 'Send magic link'}
             </button>
-            {status === 'error' && (
-              <p className="text-danger text-sm">Something went wrong. Try again.</p>
+            {status === 'error' && errorMessage && (
+              <p className="text-danger text-sm">{errorMessage}</p>
             )}
           </form>
         )}
