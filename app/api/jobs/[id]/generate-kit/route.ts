@@ -43,7 +43,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
 
   if (profileError || !profile?.master_cv_text) {
     return NextResponse.json(
-      { error: 'No master CV on file yet — add one in Settings first.' },
+      { error: 'No master CV on file yet — add one in Kit Studio first.' },
       { status: 400 }
     );
   }
@@ -51,17 +51,21 @@ export async function POST(request: Request, { params }: { params: { id: string 
   const jobDescription = job.description ?? '';
   const cvText = profile.master_cv_text as string;
   const voiceGuide = profile.voice_guide as string | undefined;
+  const proofPoints = profile.proof_points as string | undefined;
 
   // 1. Score (also refreshes match_why/gaps in case the job changed).
   const score = await completeJSON<ScoreResult>(SCORE_JOB_SYSTEM, scoreJobUser(cvText, jobDescription));
 
   // 2. Tailored CV.
-  const tailoredCvMd = await completeText(TAILOR_CV_SYSTEM, tailorCvUser(cvText, jobDescription, voiceGuide));
+  const tailoredCvMd = await completeText(
+    TAILOR_CV_SYSTEM,
+    tailorCvUser(cvText, jobDescription, voiceGuide, proofPoints)
+  );
 
   // 3. Cover letter.
   const coverLetter = await completeText(
     COVER_LETTER_SYSTEM,
-    coverLetterUser(cvText, jobDescription, voiceGuide)
+    coverLetterUser(cvText, jobDescription, voiceGuide, proofPoints)
   );
 
   // 4. Form packet — deterministic fields from profile, plus one generated field.

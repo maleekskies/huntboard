@@ -17,7 +17,7 @@ export default async function SettingsPage() {
     <div className="max-w-2xl px-6 py-10 pb-24 md:pb-10">
       <h1 className="font-display text-3xl text-text mb-1">Settings</h1>
       <p className="text-muted mb-8">
-        Your master CV and voice. Every generated kit is built from what's here — nothing else.
+        Who you are and what you're looking for. Your CV and voice live in Kit Studio.
       </p>
       <SettingsForm profile={profile} userId={user!.id} />
     </div>

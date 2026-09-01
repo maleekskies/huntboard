@@ -10,10 +10,9 @@ interface Profile {
   location?: string;
   portfolio_url?: string;
   linkedin_url?: string;
-  master_cv_text?: string;
   work_auth_notes?: string;
   target_titles?: string[];
-  voice_guide?: string;
+  exclude_companies?: string[];
 }
 
 export default function SettingsForm({ profile, userId }: { profile: Profile | null; userId: string }) {
@@ -24,12 +23,13 @@ export default function SettingsForm({ profile, userId }: { profile: Profile | n
     location: profile?.location ?? '',
     portfolio_url: profile?.portfolio_url ?? '',
     linkedin_url: profile?.linkedin_url ?? '',
-    master_cv_text: profile?.master_cv_text ?? '',
     work_auth_notes: profile?.work_auth_notes ?? '',
-    voice_guide: profile?.voice_guide ?? '',
   });
   const [targetTitlesText, setTargetTitlesText] = useState(
     (profile?.target_titles ?? []).join(', ')
+  );
+  const [excludeCompaniesText, setExcludeCompaniesText] = useState(
+    (profile?.exclude_companies ?? []).join(', ')
   );
   const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
 
@@ -41,10 +41,8 @@ export default function SettingsForm({ profile, userId }: { profile: Profile | n
     const { error } = await supabase.from('profile').upsert({
       id: userId,
       ...form,
-      target_titles: targetTitlesText
-        .split(',')
-        .map((t) => t.trim())
-        .filter(Boolean),
+      target_titles: targetTitlesText.split(',').map((t) => t.trim()).filter(Boolean),
+      exclude_companies: excludeCompaniesText.split(',').map((t) => t.trim()).filter(Boolean),
       updated_at: new Date().toISOString(),
     });
 
@@ -54,7 +52,7 @@ export default function SettingsForm({ profile, userId }: { profile: Profile | n
   function field(key: keyof Profile) {
     return {
       value: form[key] ?? '',
-      onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+      onChange: (e: React.ChangeEvent<HTMLInputElement>) =>
         setForm((f) => ({ ...f, [key]: e.target.value })),
     };
   }
@@ -70,11 +68,29 @@ export default function SettingsForm({ profile, userId }: { profile: Profile | n
         <LabeledInput label="LinkedIn URL" {...field('linkedin_url')} />
       </div>
 
-      <LabeledInput
-        label="Target titles (comma-separated)"
-        value={targetTitlesText}
-        onChange={(e) => setTargetTitlesText(e.target.value)}
-      />
+      <div>
+        <label className="block text-sm text-muted mb-1">
+          Target titles (comma-separated) — this drives what "Scan now" searches for
+        </label>
+        <input
+          className="w-full bg-surface border border-border rounded px-3 py-2 text-text focus:outline-none focus:border-accent"
+          placeholder="e.g. Technical Writer, Web3 Content, Product Manager"
+          value={targetTitlesText}
+          onChange={(e) => setTargetTitlesText(e.target.value)}
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm text-muted mb-1">
+          Excluded companies (comma-separated) — never shown, even if they'd match
+        </label>
+        <input
+          className="w-full bg-surface border border-border rounded px-3 py-2 text-text focus:outline-none focus:border-accent"
+          placeholder="e.g. a former employer, a company you've already tried"
+          value={excludeCompaniesText}
+          onChange={(e) => setExcludeCompaniesText(e.target.value)}
+        />
+      </div>
 
       <div>
         <label className="block text-sm text-muted mb-1">Work authorization notes</label>
@@ -84,32 +100,13 @@ export default function SettingsForm({ profile, userId }: { profile: Profile | n
         />
       </div>
 
-      <div>
-        <label className="block text-sm text-muted mb-1">Voice guide — how you actually sound</label>
-        <textarea
-          rows={3}
-          className="w-full bg-surface border border-border rounded px-3 py-2 text-text focus:outline-none focus:border-accent"
-          {...field('voice_guide')}
-        />
-      </div>
-
-      <div>
-        <label className="block text-sm text-muted mb-1">Master CV (paste full text)</label>
-        <textarea
-          rows={16}
-          className="w-full bg-surface border border-border rounded px-3 py-3 text-text font-mono text-sm focus:outline-none focus:border-accent"
-          placeholder="Paste your CV text here — every generated kit pulls only from this."
-          {...field('master_cv_text')}
-        />
-      </div>
-
       <div className="flex items-center gap-3">
         <button
           type="submit"
           disabled={status === 'saving'}
           className="bg-accent text-bg font-medium rounded px-5 py-2.5 hover:bg-accentDim transition-colors disabled:opacity-50 self-start"
         >
-          {status === 'saving' ? 'Saving…' : 'Save profile'}
+          {status === 'saving' ? 'Saving…' : 'Save settings'}
         </button>
         {status === 'saved' && <span className="text-good text-sm">Saved.</span>}
         {status === 'error' && <span className="text-danger text-sm">Couldn't save — try again.</span>}

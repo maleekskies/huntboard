@@ -18,6 +18,7 @@ create table if not exists profile (
   target_titles text[] default '{}',
   exclude_companies text[] default '{}',
   voice_guide text,
+  proof_points text,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );

@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 const NAV_ITEMS = [
   { href: '/', label: 'Inbox' },
   { href: '/pipeline', label: 'Pipeline' },
+  { href: '/kit-studio', label: 'Kit Studio' },
   { href: '/settings', label: 'Settings' },
 ];
 
