@@ -24,11 +24,22 @@ export interface Job {
   match_score: number | null;
   match_why: string[] | null;
   match_gaps: string[] | null;
+  fit_tags: string[] | null;
+  domain_score: number | null;
+  skills_score: number | null;
+  seniority_score: number | null;
+  location_score: number | null;
+  next_action: string | null;
+  next_date: string | null;
+  interview_at: string | null;
+  reject_reason: string | null;
   visa_location_risk: string | null;
   status: JobStatus;
   created_at: string;
   updated_at: string;
 }
+
+export type KitStatus = 'draft' | 'needs_edit' | 'approved';
 
 export interface Kit {
   id: string;
@@ -39,6 +50,10 @@ export interface Kit {
   form_answers_json: FormAnswers | null;
   facts_used: string[] | null;
   model_used: string | null;
+  status: KitStatus;
+  talking_points: string[] | null;
+  gap_note: string | null;
+  approved_at: string | null;
   generated_at: string;
 }
 

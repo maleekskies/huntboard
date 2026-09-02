@@ -27,15 +27,26 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-bg px-6">
-      <div className="w-full max-w-sm">
-        <h1 className="font-display text-3xl text-text mb-2">Huntboard</h1>
-        <p className="text-muted mb-8">Sign in with a magic link. No password to remember.</p>
+    <main className="min-h-screen flex flex-col items-center justify-center bg-bg px-6 py-16">
+      <div className="w-full max-w-md">
+        <h1 className="font-display text-4xl text-text mb-3">
+          Hunt<span className="text-accent">board</span>
+        </h1>
+        <p className="text-text text-lg mb-1">Roles scored against your profile.</p>
+        <p className="text-muted mb-8">Nothing sends until you say so.</p>
+
+        <ul className="flex flex-col gap-3 mb-8">
+          <Fact label="Match" text="Every role gets a score and a reason." />
+          <Fact label="Review" text="Gaps and talking points before you apply." />
+          <Fact label="Send" text="You approve the kit." />
+        </ul>
 
         {status === 'sent' ? (
-          <p className="text-text bg-surface border border-border rounded p-4">
-            Check <span className="text-accent">{email}</span> for the sign-in link.
-          </p>
+          <div className="bg-surface border border-border rounded-lg p-4">
+            <p className="text-text">
+              Check <span className="text-accent">{email}</span> for the sign-in link.
+            </p>
+          </div>
         ) : (
           <form onSubmit={handleSubmit} className="flex flex-col gap-3">
             <input
@@ -58,7 +69,27 @@ export default function LoginPage() {
             )}
           </form>
         )}
+
+        <div className="mt-8 pt-6 border-t border-border">
+          <p className="text-xs text-muted uppercase tracking-wide mb-3">What happens after sign-in</p>
+          <ol className="text-sm text-muted flex flex-col gap-1.5">
+            <li>1. You set target titles and must-haves</li>
+            <li>2. Inbox fills with scored roles</li>
+            <li>3. You review a kit, then send</li>
+          </ol>
+        </div>
+
+        <p className="text-xs text-muted mt-8 text-center">Personal desk. Not a job board.</p>
       </div>
     </main>
+  );
+}
+
+function Fact({ label, text }: { label: string; text: string }) {
+  return (
+    <li className="flex items-start gap-3">
+      <span className="text-accent text-sm font-medium w-14 shrink-0">{label}</span>
+      <span className="text-muted text-sm">{text}</span>
+    </li>
   );
 }

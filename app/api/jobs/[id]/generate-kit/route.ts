@@ -43,7 +43,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
 
   if (profileError || !profile?.master_cv_text) {
     return NextResponse.json(
-      { error: 'No master CV on file yet. Add one in Kit Studio first.' },
+      { error: 'No master CV on file yet. Add one in Settings first.' },
       { status: 400 }
     );
   }
@@ -85,6 +85,9 @@ export async function POST(request: Request, { params }: { params: { id: string 
       cover_letter: coverLetter,
       form_answers_json: formAnswers,
       facts_used: score.why,
+      talking_points: score.why.slice(0, 3),
+      gap_note: score.gaps.length > 0 ? score.gaps.join(' ') : null,
+      status: 'draft',
       model_used: 'groq/llama-3.3-70b-versatile',
     })
     .select()

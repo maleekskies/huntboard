@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { computeMatch } from '@/lib/scan/score';
 
 // GET /api/jobs?status=&minScore=: Inbox / Pipeline list, filterable.
 export async function GET(request: Request) {
@@ -44,6 +45,23 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'title, company, and url are required' }, { status: 400 });
   }
 
+  const { data: profile } = await supabase
+    .from('profile')
+    .select('target_titles, must_haves, deal_breakers, locations, seniority')
+    .eq('id', user.id)
+    .maybeSingle();
+
+  const match = computeMatch(
+    title,
+    description ?? null,
+    profile?.target_titles ?? [],
+    profile?.must_haves ?? [],
+    profile?.deal_breakers ?? [],
+    location ?? null,
+    profile?.locations ?? [],
+    profile?.seniority ?? null
+  );
+
   const { data, error } = await supabase
     .from('jobs')
     .insert({
@@ -55,6 +73,14 @@ export async function POST(request: Request) {
       location: location ?? null,
       url,
       description: description ?? null,
+      match_score: match.score,
+      match_why: [match.why],
+      fit_tags: match.fitTags,
+      match_gaps: match.gapTags,
+      domain_score: match.domainScore,
+      skills_score: match.skillsScore,
+      seniority_score: match.seniorityScore,
+      location_score: match.locationScore,
       status: 'new',
     })
     .select()

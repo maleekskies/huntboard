@@ -19,6 +19,16 @@ create table if not exists profile (
   exclude_companies text[] default '{}',
   voice_guide text,
   proof_points text,
+  locations text[] default '{}',
+  must_haves text[] default '{}',
+  deal_breakers text[] default '{}',
+  min_match int default 70,
+  seniority text,
+  comp_floor text,
+  wins text,
+  timezone text,
+  onboarded_at timestamptz,
+  notify_digest boolean default false,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
@@ -39,6 +49,15 @@ create table if not exists jobs (
   match_score int,
   match_why text[],
   match_gaps text[],
+  fit_tags text[] default '{}',
+  domain_score int,
+  skills_score int,
+  seniority_score int,
+  location_score int,
+  next_action text,
+  next_date date,
+  interview_at timestamptz,
+  reject_reason text,
   visa_location_risk text,
   status text not null default 'new'
     check (status in ('new','saved','kit_ready','applied','interview','rejected','offer','ignored')),
@@ -56,7 +75,20 @@ create table if not exists kits (
   form_answers_json jsonb,
   facts_used text[],
   model_used text,
+  status text default 'draft' check (status in ('draft','needs_edit','approved')),
+  talking_points text[],
+  gap_note text,
+  approved_at timestamptz,
   generated_at timestamptz default now()
+);
+
+create table if not exists rejections (
+  id uuid primary key default uuid_generate_v4(),
+  user_id uuid references auth.users(id) on delete cascade not null,
+  job_id uuid references jobs(id) on delete cascade not null,
+  reason text not null,
+  term text not null,
+  created_at timestamptz default now()
 );
 
 create table if not exists events (
@@ -72,6 +104,7 @@ alter table profile enable row level security;
 alter table jobs enable row level security;
 alter table kits enable row level security;
 alter table events enable row level security;
+alter table rejections enable row level security;
 
 create policy "profile: own row" on profile
   for all using (auth.uid() = id) with check (auth.uid() = id);
@@ -86,6 +119,9 @@ create policy "kits: via own job" on kits
 create policy "events: via own job" on events
   for all using (exists (select 1 from jobs where jobs.id = events.job_id and jobs.user_id = auth.uid()))
   with check (exists (select 1 from jobs where jobs.id = events.job_id and jobs.user_id = auth.uid()));
+
+create policy "rejections: own rows" on rejections
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 create index if not exists jobs_user_status_idx on jobs (user_id, status);
 create index if not exists jobs_user_score_idx on jobs (user_id, match_score desc);

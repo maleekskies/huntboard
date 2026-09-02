@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { scanAllSources } from '@/lib/scan/sources';
-import { lexicalScore, isExcludedCompany } from '@/lib/scan/score';
+import { computeMatch, isExcludedCompany, applyTeachingPenalty, type RecentRejection } from '@/lib/scan/score';
 
 // POST /api/scan: the "Scan now" button. Pulls from every free board API,
 // scores each listing against the user's target titles, and upserts into
@@ -29,12 +29,24 @@ export async function POST() {
 
   const { data: profile } = await supabase
     .from('profile')
-    .select('target_titles, exclude_companies')
+    .select('target_titles, exclude_companies, must_haves, deal_breakers, locations, seniority')
     .eq('id', user.id)
     .single();
 
   const targetTitles = profile?.target_titles ?? [];
   const excludeCompanies = profile?.exclude_companies ?? [];
+  const mustHaves = profile?.must_haves ?? [];
+  const dealBreakers = profile?.deal_breakers ?? [];
+  const profileLocations = profile?.locations ?? [];
+  const profileSeniority = profile?.seniority ?? null;
+
+  const { data: recentRejections } = await supabase
+    .from('rejections')
+    .select('reason, term, created_at')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false })
+    .limit(50);
+  const rejections: RecentRejection[] = recentRejections ?? [];
 
   if (targetTitles.length === 0) {
     return NextResponse.json(
@@ -51,10 +63,30 @@ export async function POST() {
     .flatMap((r) => r.jobs)
     .filter((j) => !isExcludedCompany(j.company, excludeCompanies))
     .filter((j) => isWithinRecencyWindow(j.posted_at))
-    .map((j) => ({
-      ...j,
-      match_score: lexicalScore(j.title, j.description, targetTitles),
-    }))
+    .map((j) => {
+      const rawMatch = computeMatch(
+        j.title,
+        j.description,
+        targetTitles,
+        mustHaves,
+        dealBreakers,
+        j.location,
+        profileLocations,
+        profileSeniority
+      );
+      const match = applyTeachingPenalty(rawMatch, j.title, j.company, rejections);
+      return {
+        ...j,
+        match_score: match.score,
+        match_why: match.why,
+        fit_tags: match.fitTags,
+        gap_tags: match.gapTags,
+        domain_score: match.domainScore,
+        skills_score: match.skillsScore,
+        seniority_score: match.seniorityScore,
+        location_score: match.locationScore,
+      };
+    })
     .filter((j) => j.match_score >= MIN_SCORE_TO_KEEP);
 
   // Some boards occasionally list the same job twice (re-tagged categories,
@@ -117,6 +149,13 @@ export async function POST() {
       raw_json: j.raw_json,
       posted_at: j.posted_at,
       match_score: j.match_score,
+      match_why: [j.match_why],
+      fit_tags: j.fit_tags,
+      match_gaps: j.gap_tags,
+      domain_score: j.domain_score,
+      skills_score: j.skills_score,
+      seniority_score: j.seniority_score,
+      location_score: j.location_score,
       status: 'new' as const,
     }));
     const { data, error } = await supabase.from('jobs').insert(rows).select('id');
@@ -141,6 +180,13 @@ export async function POST() {
             raw_json: j.raw_json,
             posted_at: j.posted_at,
             match_score: j.match_score,
+            match_why: [j.match_why],
+            fit_tags: j.fit_tags,
+            match_gaps: j.gap_tags,
+            domain_score: j.domain_score,
+            skills_score: j.skills_score,
+            seniority_score: j.seniority_score,
+            location_score: j.location_score,
             updated_at: new Date().toISOString(),
           })
           .eq('id', id);
