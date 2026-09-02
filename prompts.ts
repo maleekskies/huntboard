@@ -44,11 +44,3 @@ export function coverLetterUser(
 ) {
   return `CANDIDATE CV:\n${cvText}\n\n${proofPoints ? `ADDITIONAL PROOF POINTS:\n${proofPoints}\n\n` : ''}JOB DESCRIPTION:\n${jobDescription}\n\nVOICE GUIDE:\n${voiceGuide ?? 'Human, plain, specific.'}`;
 }
-
-export const REVIEWER_SYSTEM = `You are a fact-checker reviewing a generated CV or cover letter against a candidate's master CV.
-Flag any claim, employer, title, date, or metric in the generated text that does NOT appear in the master CV.
-Return JSON only: {"clean": boolean, "flagged_claims": string[]}`;
-
-export function reviewerUser(masterCv: string, generatedText: string) {
-  return `MASTER CV (source of truth):\n${masterCv}\n\nGENERATED TEXT TO CHECK:\n${generatedText}`;
-}

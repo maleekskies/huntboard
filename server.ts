@@ -16,7 +16,7 @@ export function createClient() {
           try {
             cookieStore.set({ name, value, ...options });
           } catch {
-            // Called from a Server Component with no writable cookie store —
+            // Called from a Server Component with no writable cookie store,
             // safe to ignore because middleware refreshes the session.
           }
         },

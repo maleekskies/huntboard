@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
-// POST /api/ingest/jobs
-// Body: { jobs: NormalizedJob[] }
-// Called by the scan worker (free_job_agent.py rewritten, a GitHub Action,
-// or an in-app route handler in Phase 1). Upserts on (user_id, source, source_id)
-// so re-scanning never creates duplicates. Not used yet in Phase 0.
+// Force Node runtime: pdf-parse needs Node APIs not available on the Edge.
+export const runtime = 'nodejs';
+
+const MAX_SIZE_BYTES = 8 * 1024 * 1024; // 8MB, generous for a CV
+
 export async function POST(request: Request) {
   const supabase = createClient();
   const {
@@ -13,31 +13,44 @@ export async function POST(request: Request) {
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
 
-  const body = await request.json();
-  const jobs = body.jobs as Array<{
-    source: string;
-    source_id: string;
-    title: string;
-    company: string;
-    location?: string;
-    url: string;
-    description?: string;
-    raw_json?: unknown;
-    posted_at?: string;
-  }>;
+  const formData = await request.formData();
+  const file = formData.get('file');
 
-  if (!Array.isArray(jobs) || jobs.length === 0) {
-    return NextResponse.json({ error: 'jobs[] is required' }, { status: 400 });
+  if (!file || !(file instanceof File)) {
+    return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
   }
 
-  const rows = jobs.map((j) => ({ ...j, user_id: user.id, status: 'new' as const }));
+  if (file.type !== 'application/pdf') {
+    return NextResponse.json({ error: 'Only PDF files are supported' }, { status: 400 });
+  }
 
-  const { data, error } = await supabase
-    .from('jobs')
-    .upsert(rows, { onConflict: 'user_id,source,source_id', ignoreDuplicates: true })
-    .select();
+  if (file.size > MAX_SIZE_BYTES) {
+    return NextResponse.json({ error: 'File too large (max 8MB)' }, { status: 400 });
+  }
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  try {
+    // pdf-parse's own index.js runs a debug code path on import that tries
+    // to read a hardcoded test file ('./test/data/05-versions-space.pdf'),
+    // which crashes here regardless of how it's imported. Going straight to
+    // its internal lib file bypasses that broken wrapper entirely.
+    const pdfParse = (await import('pdf-parse/lib/pdf-parse.js')).default;
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const result = await pdfParse(buffer);
 
-  return NextResponse.json({ inserted: data.length });
+    const text = result.text.trim();
+    if (!text) {
+      return NextResponse.json(
+        { error: "Couldn't extract text from that PDF. It may be a scanned image rather than real text." },
+        { status: 422 }
+      );
+    }
+
+    return NextResponse.json({ text, pages: result.numpages });
+  } catch (err) {
+    return NextResponse.json(
+      { error: `Failed to parse PDF: ${err instanceof Error ? err.message : 'unknown error'}` },
+      { status: 500 }
+    );
+  }
 }

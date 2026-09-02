@@ -1,6 +1,6 @@
 // Fetchers for the free, no-key job board APIs from the handoff doc.
 // Each one is wrapped so a single source failing (timeout, schema change,
-// rate limit) never takes down the whole scan — callers get partial results
+// rate limit) never takes down the whole scan, callers get partial results
 // plus a per-source error list.
 
 export interface NormalizedJob {
@@ -34,7 +34,7 @@ function stripHtml(html: string | undefined | null): string {
 
 // --- RemoteOK ---------------------------------------------------------
 // Requires a real User-Agent or it blocks the request. First array item is
-// a legal notice, not a job — skip anything without an `id`.
+// a legal notice, not a job, skip anything without an `id`.
 async function fetchRemoteOK(): Promise<NormalizedJob[]> {
   const res = await fetchWithTimeout('https://remoteok.com/api', {
     headers: { 'User-Agent': 'Huntboard personal job scanner (contact: maleekskies@gmail.com)' },
@@ -153,7 +153,7 @@ async function fetchJobicy(): Promise<NormalizedJob[]> {
 }
 
 // --- Adzuna ---------------------------------------------------------------
-// Aggregates Indeed, Glassdoor, Workday, and 30+ other sources — the closest
+// Aggregates Indeed, Glassdoor, Workday, and 30+ other sources, the closest
 // legitimate free equivalent to searching Indeed directly. Free tier is
 // ~1,000 calls/month (~33/day), so this fetches exactly ONE page per scan
 // (50 results) rather than paginating, and skips cleanly if no key is set.
@@ -163,7 +163,7 @@ async function fetchAdzuna(): Promise<NormalizedJob[]> {
   const appId = process.env.ADZUNA_APP_ID;
   const appKey = process.env.ADZUNA_APP_KEY;
   if (!appId || !appKey) {
-    throw new Error('Adzuna not configured (ADZUNA_APP_ID / ADZUNA_APP_KEY missing) — skipped');
+    throw new Error('Adzuna not configured (ADZUNA_APP_ID / ADZUNA_APP_KEY missing) - skipped');
   }
 
   const country = 'us';

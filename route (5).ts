@@ -1,10 +1,30 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { computeMatch } from '@/lib/scan/score';
 
-// Force Node runtime — pdf-parse needs Node APIs not available on the Edge.
-export const runtime = 'nodejs';
+// POST /api/jobs/score-url
+// Body: { url: string }
+// The fastest path to a scored job: paste any job posting URL, fetch its
+// HTML, pull a rough title and body text out of it, score it, and drop it
+// straight into the Inbox. Works even before any board scan has ever run.
+const TIMEOUT_MS = 8000;
+const MAX_DESCRIPTION_CHARS = 6000;
 
-const MAX_SIZE_BYTES = 8 * 1024 * 1024; // 8MB, generous for a CV
+function stripHtml(html: string): string {
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function extractTitle(html: string): string | null {
+  const match = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+  return match ? match[1].trim() : null;
+}
 
 export async function POST(request: Request) {
   const supabase = createClient();
@@ -13,44 +33,87 @@ export async function POST(request: Request) {
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
 
-  const formData = await request.formData();
-  const file = formData.get('file');
+  const body = await request.json();
+  const url: string | undefined = body.url;
 
-  if (!file || !(file instanceof File)) {
-    return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
+  if (!url || !url.startsWith('http')) {
+    return NextResponse.json({ error: 'A valid job URL is required' }, { status: 400 });
   }
 
-  if (file.type !== 'application/pdf') {
-    return NextResponse.json({ error: 'Only PDF files are supported' }, { status: 400 });
-  }
-
-  if (file.size > MAX_SIZE_BYTES) {
-    return NextResponse.json({ error: 'File too large — max 8MB' }, { status: 400 });
-  }
-
+  let html: string;
   try {
-    // pdf-parse's own index.js runs a debug code path on import that tries
-    // to read a hardcoded test file ('./test/data/05-versions-space.pdf'),
-    // which crashes here regardless of how it's imported. Going straight to
-    // its internal lib file bypasses that broken wrapper entirely.
-    const pdfParse = (await import('pdf-parse/lib/pdf-parse.js')).default;
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-    const result = await pdfParse(buffer);
-
-    const text = result.text.trim();
-    if (!text) {
-      return NextResponse.json(
-        { error: "Couldn't extract text from that PDF — it may be a scanned image rather than real text." },
-        { status: 422 }
-      );
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Huntboard personal job scanner)' },
+    });
+    clearTimeout(timer);
+    if (!res.ok) {
+      return NextResponse.json({ error: `Couldn't fetch that URL (${res.status}).` }, { status: 422 });
     }
-
-    return NextResponse.json({ text, pages: result.numpages });
+    html = await res.text();
   } catch (err) {
     return NextResponse.json(
-      { error: `Failed to parse PDF: ${err instanceof Error ? err.message : 'unknown error'}` },
-      { status: 500 }
+      { error: `Couldn't reach that URL: ${err instanceof Error ? err.message : 'unknown error'}` },
+      { status: 422 }
     );
   }
+
+  const rawTitle = extractTitle(html) ?? 'Untitled role';
+  const description = stripHtml(html).slice(0, MAX_DESCRIPTION_CHARS);
+
+  if (description.length < 50) {
+    return NextResponse.json(
+      { error: "Couldn't extract meaningful text from that page. Paste the job description manually instead." },
+      { status: 422 }
+    );
+  }
+
+  const { data: profile } = await supabase
+    .from('profile')
+    .select('target_titles, must_haves, deal_breakers, exclude_companies, locations, seniority')
+    .eq('id', user.id)
+    .maybeSingle();
+
+  const company = new URL(url).hostname.replace(/^www\./, '');
+
+  const match = computeMatch(
+    rawTitle,
+    description,
+    profile?.target_titles ?? [],
+    profile?.must_haves ?? [],
+    profile?.deal_breakers ?? [],
+    null,
+    profile?.locations ?? [],
+    profile?.seniority ?? null
+  );
+
+  const { data: job, error } = await supabase
+    .from('jobs')
+    .insert({
+      user_id: user.id,
+      source: 'pasted_url',
+      source_id: null,
+      title: rawTitle,
+      company,
+      location: null,
+      url,
+      description,
+      match_score: match.score,
+      match_why: [match.why],
+      fit_tags: match.fitTags,
+      match_gaps: match.gapTags,
+      domain_score: match.domainScore,
+      skills_score: match.skillsScore,
+      seniority_score: match.seniorityScore,
+      location_score: match.locationScore,
+      status: 'new',
+    })
+    .select()
+    .single();
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  return NextResponse.json({ job }, { status: 201 });
 }

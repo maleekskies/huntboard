@@ -1,11 +1,12 @@
 import type { Metadata } from 'next';
-import { Source_Serif_4, Inter } from 'next/font/google';
+import { Space_Grotesk, Inter } from 'next/font/google';
 import './globals.css';
 import Sidebar from '@/components/Sidebar';
 
-const serif = Source_Serif_4({
+const display = Space_Grotesk({
   subsets: ['latin'],
-  variable: '--font-serif',
+  weight: ['500', '700'],
+  variable: '--font-display',
   display: 'swap',
 });
 
@@ -22,7 +23,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${serif.variable} ${sans.variable}`}>
+    <html lang="en" className={`${display.variable} ${sans.variable}`}>
       <body className="bg-bg text-text font-sans min-h-screen">
         <div className="flex min-h-screen">
           <Sidebar />

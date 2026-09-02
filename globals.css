@@ -7,8 +7,23 @@
 }
 
 :focus-visible {
-  outline: 2px solid #D4A24C;
+  outline: 2px solid #34E4C8;
   outline-offset: 2px;
+}
+
+.grad-text {
+  background: linear-gradient(90deg, #34E4C8, #A05CFF);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.grad-bg {
+  background: linear-gradient(90deg, #34E4C8, #A05CFF);
+}
+
+.grad-bar {
+  background: linear-gradient(180deg, #34E4C8, #A05CFF);
 }
 
 @media (prefers-reduced-motion: reduce) {

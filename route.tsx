@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { renderToBuffer, Document, Page, Text, View, StyleSheet, Font } from '@react-pdf/renderer';
+import { renderToBuffer, Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
 
 // ATS-safe: single column, system font, no icons/text boxes in the layer.
-// We keep markdown headings (#, ##) as visual weight but strip the syntax —
+// We keep markdown headings (#, ##) as visual weight but strip the syntax:
 // ATS parsers choke on raw markdown characters.
 const styles = StyleSheet.create({
   page: { padding: 40, fontSize: 10.5, fontFamily: 'Helvetica', lineHeight: 1.4, color: '#111' },

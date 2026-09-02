@@ -7,6 +7,7 @@ import type { Job, Kit } from '@/lib/types';
 
 const STATUSES = ['new', 'saved', 'kit_ready', 'applied', 'interview', 'rejected', 'offer', 'ignored'];
 const TABS = ['Overview', 'Tailored CV', 'Cover letter', 'Form packet'] as const;
+const REJECT_REASONS = ['wrong seniority', 'wrong domain', 'too thin'] as const;
 
 export default function JobDetail({ job, kit }: { job: Job; kit: Kit | null }) {
   const router = useRouter();
@@ -14,34 +15,129 @@ export default function JobDetail({ job, kit }: { job: Job; kit: Kit | null }) {
   const [generating, setGenerating] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
   const [copyLabel, setCopyLabel] = useState('Copy cover letter');
+  const [statusError, setStatusError] = useState<string | null>(null);
+  const [showRejectForm, setShowRejectForm] = useState(false);
+  const [rejectReason, setRejectReason] = useState<string>(REJECT_REASONS[0]);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [actionBusy, setActionBusy] = useState(false);
+  const [nextAction, setNextAction] = useState(job.next_action ?? '');
+  const [nextDate, setNextDate] = useState(job.next_date ?? '');
 
   async function handleGenerate() {
     setGenerating(true);
     setGenError(null);
-    const res = await fetch(`/api/jobs/${job.id}/generate-kit`, { method: 'POST' });
-    if (res.ok) {
-      router.refresh();
-    } else {
-      const body = await res.json().catch(() => ({}));
-      setGenError(body.error ?? 'Kit generation failed. Try again.');
+    try {
+      const res = await fetch(`/api/jobs/${job.id}/generate-kit`, { method: 'POST' });
+      if (res.ok) {
+        router.refresh();
+      } else {
+        const body = await res.json().catch(() => ({}));
+        setGenError(body.error ?? `Kit generation failed (${res.status}).`);
+      }
+    } catch (err) {
+      setGenError(err instanceof Error ? err.message : 'Kit generation request failed to complete.');
+    } finally {
+      setGenerating(false);
     }
-    setGenerating(false);
   }
 
   async function handleStatusChange(e: React.ChangeEvent<HTMLSelectElement>) {
+    const nextStatus = e.target.value;
+    if (nextStatus === 'applied' && !nextDate) {
+      setStatusError('Set a follow-up date below before moving this to Applied.');
+      return;
+    }
     const supabase = createClient();
-    await supabase
+    const { error } = await supabase
       .from('jobs')
-      .update({ status: e.target.value, updated_at: new Date().toISOString() })
+      .update({ status: nextStatus, updated_at: new Date().toISOString() })
       .eq('id', job.id);
-    router.refresh();
+    if (error) {
+      setStatusError(error.message);
+    } else {
+      setStatusError(null);
+      router.refresh();
+    }
+  }
+
+  async function handleSaveNextAction() {
+    setActionBusy(true);
+    setActionError(null);
+    const supabase = createClient();
+    const { error } = await supabase
+      .from('jobs')
+      .update({ next_action: nextAction || null, next_date: nextDate || null, updated_at: new Date().toISOString() })
+      .eq('id', job.id);
+    setActionBusy(false);
+    if (error) setActionError(error.message);
+    else router.refresh();
+  }
+
+  async function handleSaveToPipeline() {
+    setActionBusy(true);
+    setActionError(null);
+    const supabase = createClient();
+    const { error } = await supabase
+      .from('jobs')
+      .update({ status: 'saved', updated_at: new Date().toISOString() })
+      .eq('id', job.id);
+    setActionBusy(false);
+    if (error) setActionError(error.message);
+    else router.refresh();
+  }
+
+  async function handleApproveKit() {
+    if (!kit) return;
+    setActionBusy(true);
+    setActionError(null);
+    const supabase = createClient();
+    const { error: kitError } = await supabase
+      .from('kits')
+      .update({ status: 'approved', approved_at: new Date().toISOString() })
+      .eq('id', kit.id);
+    const { error: jobError } = await supabase
+      .from('jobs')
+      .update({ status: 'kit_ready', updated_at: new Date().toISOString() })
+      .eq('id', job.id);
+    setActionBusy(false);
+    const error = kitError ?? jobError;
+    if (error) setActionError(error.message);
+    else router.refresh();
+  }
+
+  async function handleReject() {
+    setActionBusy(true);
+    setActionError(null);
+    const supabase = createClient();
+    const term = rejectReason === 'wrong domain' ? job.company : job.title;
+
+    const { error: jobError } = await supabase
+      .from('jobs')
+      .update({ status: 'rejected', reject_reason: rejectReason, updated_at: new Date().toISOString() })
+      .eq('id', job.id);
+    const { error: rejectionError } = await supabase
+      .from('rejections')
+      .insert({ user_id: job.user_id, job_id: job.id, reason: rejectReason, term });
+
+    setActionBusy(false);
+    const error = jobError ?? rejectionError;
+    if (error) setActionError(error.message);
+    else {
+      setShowRejectForm(false);
+      router.refresh();
+    }
   }
 
   async function handleCopyLetter() {
     if (!kit?.cover_letter) return;
-    await navigator.clipboard.writeText(kit.cover_letter);
-    setCopyLabel('Copied!');
-    setTimeout(() => setCopyLabel('Copy cover letter'), 1500);
+    try {
+      await navigator.clipboard.writeText(kit.cover_letter);
+      setCopyLabel('Copied!');
+      setTimeout(() => setCopyLabel('Copy cover letter'), 1500);
+    } catch {
+      setCopyLabel('Copy failed, select the text manually');
+      setTimeout(() => setCopyLabel('Copy cover letter'), 2000);
+    }
   }
 
   return (
@@ -54,25 +150,43 @@ export default function JobDetail({ job, kit }: { job: Job; kit: Kit | null }) {
             {job.location ? ` · ${job.location}` : ''}
           </p>
         </div>
-        <select
-          value={job.status}
-          onChange={handleStatusChange}
-          className="bg-surface border border-border rounded px-3 py-2 text-text text-sm self-start"
-        >
-          {STATUSES.map((s) => (
-            <option key={s} value={s}>
-              {s.replace('_', ' ')}
-            </option>
-          ))}
-        </select>
+        <div className="flex flex-col items-end gap-1">
+          <select
+            value={job.status}
+            onChange={handleStatusChange}
+            className="bg-surface border border-border rounded px-3 py-2 text-text text-sm self-start"
+          >
+            {STATUSES.map((s) => (
+              <option key={s} value={s}>
+                {s.replace('_', ' ')}
+              </option>
+            ))}
+          </select>
+          {statusError && <p className="text-danger text-xs max-w-[200px] text-right">{statusError}</p>}
+        </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3 mb-6">
+      {job.match_score !== null && (
+        <div className="bg-surface border border-border rounded-lg p-4 mb-4">
+          <div className="flex items-center gap-3 mb-3">
+            <span className="grad-text text-2xl font-display font-bold tabular-nums">{job.match_score}</span>
+            <span className="text-muted text-sm">overall match</span>
+          </div>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+            <ScoreBar label="Domain" value={job.domain_score} />
+            <ScoreBar label="Skills" value={job.skills_score} />
+            <ScoreBar label="Seniority" value={job.seniority_score} />
+            <ScoreBar label="Location" value={job.location_score} />
+          </div>
+        </div>
+      )}
+
+      <div className="flex flex-wrap items-center gap-3 mb-3">
         <a
           href={job.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="bg-accent text-bg font-medium rounded px-4 py-2.5 hover:bg-accentDim transition-colors text-sm"
+          className="grad-bg text-bg font-medium rounded px-4 py-2.5 hover:opacity-90 transition-colors text-sm"
         >
           Open official apply page ↗
         </a>
@@ -96,12 +210,86 @@ export default function JobDetail({ job, kit }: { job: Job; kit: Kit | null }) {
       </div>
       {genError && <p className="text-danger text-sm mb-4">{genError}</p>}
 
-      {job.match_score !== null && (
-        <div className="bg-surface border border-border rounded-lg px-4 py-3 mb-6 flex items-center gap-3">
-          <span className="text-accent text-2xl font-display tabular-nums">{job.match_score}</span>
-          <span className="text-muted text-sm">match score</span>
+      <div className="flex flex-wrap items-center gap-3 mb-6">
+        <button
+          onClick={handleSaveToPipeline}
+          disabled={actionBusy}
+          className="bg-surface border border-border hover:border-accent text-text rounded px-4 py-2 text-sm transition-colors disabled:opacity-50"
+        >
+          Save to pipeline
+        </button>
+        {kit && kit.status !== 'approved' && (
+          <button
+            onClick={handleApproveKit}
+            disabled={actionBusy}
+            className="bg-surface border border-good hover:bg-good/10 text-good rounded px-4 py-2 text-sm transition-colors disabled:opacity-50"
+          >
+            Approve kit and queue send
+          </button>
+        )}
+        {kit?.status === 'approved' && (
+          <span className="text-good text-sm">Kit approved.</span>
+        )}
+        {!showRejectForm ? (
+          <button
+            onClick={() => setShowRejectForm(true)}
+            disabled={actionBusy}
+            className="text-danger text-sm hover:underline disabled:opacity-50"
+          >
+            Reject
+          </button>
+        ) : (
+          <div className="flex items-center gap-2">
+            <select
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              className="bg-surface border border-border rounded px-2 py-1.5 text-text text-sm"
+            >
+              {REJECT_REASONS.map((r) => (
+                <option key={r} value={r}>
+                  {r}
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={handleReject}
+              disabled={actionBusy}
+              className="bg-danger text-bg rounded px-3 py-1.5 text-sm disabled:opacity-50"
+            >
+              Confirm reject
+            </button>
+            <button onClick={() => setShowRejectForm(false)} className="text-muted text-sm hover:text-text">
+              Cancel
+            </button>
+          </div>
+        )}
+      </div>
+      {actionError && <p className="text-danger text-sm mb-4">{actionError}</p>}
+
+      <div className="bg-surface border border-border rounded-lg p-4 mb-6">
+        <h3 className="text-sm text-muted mb-2">Next action</h3>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <input
+            value={nextAction}
+            onChange={(e) => setNextAction(e.target.value)}
+            placeholder="e.g. Follow up with recruiter"
+            className="flex-1 bg-bg border border-border rounded px-3 py-2 text-sm text-text placeholder:text-muted focus:outline-none focus:border-accent"
+          />
+          <input
+            type="date"
+            value={nextDate}
+            onChange={(e) => setNextDate(e.target.value)}
+            className="bg-bg border border-border rounded px-3 py-2 text-sm text-text focus:outline-none focus:border-accent"
+          />
+          <button
+            onClick={handleSaveNextAction}
+            disabled={actionBusy}
+            className="bg-surface border border-border hover:border-accent text-text rounded px-4 py-2 text-sm transition-colors disabled:opacity-50"
+          >
+            Save
+          </button>
         </div>
-      )}
+      </div>
 
       {!kit ? (
         <p className="text-muted text-sm border border-dashed border-border rounded-lg p-6 text-center">
@@ -137,10 +325,26 @@ export default function JobDetail({ job, kit }: { job: Job; kit: Kit | null }) {
               )}
               {job.match_gaps && job.match_gaps.length > 0 && (
                 <div>
-                  <h3 className="text-sm text-muted mb-2">Gaps</h3>
+                  <h3 className="text-sm text-muted mb-2">Gaps to address in the kit</h3>
                   <ul className="list-disc list-inside text-text text-sm space-y-1">
                     {job.match_gaps.map((g, i) => (
                       <li key={i}>{g}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {kit.gap_note && (
+                <div>
+                  <h3 className="text-sm text-muted mb-2">Gap handling note</h3>
+                  <p className="text-text text-sm">{kit.gap_note}</p>
+                </div>
+              )}
+              {kit.talking_points && kit.talking_points.length > 0 && (
+                <div>
+                  <h3 className="text-sm text-muted mb-2">Talking points</h3>
+                  <ul className="list-disc list-inside text-text text-sm space-y-1">
+                    {kit.talking_points.map((t, i) => (
+                      <li key={i}>{t}</li>
                     ))}
                   </ul>
                 </div>
@@ -203,6 +407,21 @@ export default function JobDetail({ job, kit }: { job: Job; kit: Kit | null }) {
           )}
         </>
       )}
+    </div>
+  );
+}
+
+function ScoreBar({ label, value }: { label: string; value: number | null }) {
+  const pct = value ?? 0;
+  return (
+    <div>
+      <div className="flex items-center justify-between text-xs text-muted mb-1">
+        <span>{label}</span>
+        <span>{value === null ? 'n/a' : value}</span>
+      </div>
+      <div className="h-1.5 bg-bg rounded-full overflow-hidden">
+        <div className="h-full grad-bg" style={{ width: `${pct}%` }} />
+      </div>
     </div>
   );
 }

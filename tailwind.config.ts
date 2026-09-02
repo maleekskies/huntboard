@@ -5,19 +5,20 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        bg: '#0E0F11',
-        surface: '#17181B',
-        surfaceHover: '#1D1F23',
-        border: '#26282C',
-        text: '#EDEDEE',
-        muted: '#9A9CA3',
-        accent: '#D4A24C',
-        accentDim: '#8A6B34',
-        danger: '#C4563F',
-        good: '#5FA66B',
+        bg: '#0A0E17',
+        surface: '#131826',
+        surfaceHover: '#182032',
+        border: '#1E2536',
+        text: '#ECEFF5',
+        muted: '#7C88A0',
+        accent: '#34E4C8',
+        accentDim: '#22A88F',
+        violet: '#A05CFF',
+        danger: '#E2574C',
+        good: '#4CAF7D',
       },
       fontFamily: {
-        display: ['var(--font-serif)', 'Georgia', 'serif'],
+        display: ['var(--font-display)', 'system-ui', 'sans-serif'],
         sans: ['var(--font-sans)', 'system-ui', 'sans-serif'],
       },
       borderRadius: {

@@ -8,6 +8,7 @@ export default function AddJobForm() {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ title: '', company: '', url: '', location: '', description: '' });
   const [status, setStatus] = useState<'idle' | 'saving' | 'error'>('idle');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -23,7 +24,9 @@ export default function AddJobForm() {
       setForm({ title: '', company: '', url: '', location: '', description: '' });
       router.push(`/jobs/${job.id}`);
     } else {
+      const body = await res.json().catch(() => ({}));
       setStatus('error');
+      setErrorMessage(body.error ?? `Request failed (${res.status}).`);
     }
   }
 
@@ -83,7 +86,7 @@ export default function AddJobForm() {
         <button
           type="submit"
           disabled={status === 'saving'}
-          className="bg-accent text-bg font-medium rounded px-4 py-2.5 hover:bg-accentDim transition-colors disabled:opacity-50"
+          className="grad-bg text-bg font-medium rounded px-4 py-2.5 hover:opacity-90 transition-colors disabled:opacity-50"
         >
           {status === 'saving' ? 'Adding…' : 'Add to inbox'}
         </button>
@@ -94,7 +97,7 @@ export default function AddJobForm() {
         >
           Cancel
         </button>
-        {status === 'error' && <span className="text-danger text-sm">Couldn't add — try again.</span>}
+        {status === 'error' && errorMessage && <span className="text-danger text-sm">{errorMessage}</span>}
       </div>
     </form>
   );
