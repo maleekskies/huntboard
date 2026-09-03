@@ -65,7 +65,7 @@ export default function KitReview({ job, kit }: { job: Job; kit: Kit }) {
           <p className="text-muted">{job.company}</p>
         </div>
         {job.match_score !== null && (
-          <span className="text-accent text-xl font-display tabular-nums shrink-0">{job.match_score}</span>
+          <span className="grad-text text-xl font-display font-bold tabular-nums shrink-0">{job.match_score}</span>
         )}
       </div>
 

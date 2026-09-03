@@ -22,6 +22,9 @@ export default function JobDetail({ job, kit }: { job: Job; kit: Kit | null }) {
   const [actionBusy, setActionBusy] = useState(false);
   const [nextAction, setNextAction] = useState(job.next_action ?? '');
   const [nextDate, setNextDate] = useState(job.next_date ?? '');
+  const [showUndo, setShowUndo] = useState(false);
+  const [interviewNotes, setInterviewNotes] = useState(job.interview_notes ?? '');
+  const [notesStatus, setNotesStatus] = useState<'idle' | 'saving' | 'error'>('idle');
 
   async function handleGenerate() {
     setGenerating(true);
@@ -124,8 +127,38 @@ export default function JobDetail({ job, kit }: { job: Job; kit: Kit | null }) {
     if (error) setActionError(error.message);
     else {
       setShowRejectForm(false);
+      setShowUndo(true);
       router.refresh();
     }
+  }
+
+  async function handleUndoReject() {
+    setActionBusy(true);
+    setActionError(null);
+    try {
+      const res = await fetch(`/api/jobs/${job.id}/undo-reject`, { method: 'POST' });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setActionError(body.error ?? `Undo failed (${res.status}).`);
+      } else {
+        setShowUndo(false);
+        router.refresh();
+      }
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Undo failed to complete.');
+    }
+    setActionBusy(false);
+  }
+
+  async function handleSaveInterviewNotes() {
+    setNotesStatus('saving');
+    const supabase = createClient();
+    const { error } = await supabase
+      .from('jobs')
+      .update({ interview_notes: interviewNotes || null, updated_at: new Date().toISOString() })
+      .eq('id', job.id);
+    setNotesStatus(error ? 'error' : 'idle');
+    if (!error) router.refresh();
   }
 
   async function handleCopyLetter() {
@@ -169,7 +202,7 @@ export default function JobDetail({ job, kit }: { job: Job; kit: Kit | null }) {
       {job.match_score !== null && (
         <div className="bg-surface border border-border rounded-lg p-4 mb-4">
           <div className="flex items-center gap-3 mb-3">
-            <span className="text-accent text-2xl font-display tabular-nums">{job.match_score}</span>
+            <span className="grad-text text-2xl font-display font-bold tabular-nums">{job.match_score}</span>
             <span className="text-muted text-sm">overall match</span>
           </div>
           <div className="grid grid-cols-2 gap-x-4 gap-y-2">
@@ -186,7 +219,7 @@ export default function JobDetail({ job, kit }: { job: Job; kit: Kit | null }) {
           href={job.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="bg-accent text-bg font-medium rounded px-4 py-2.5 hover:bg-accentDim transition-colors text-sm"
+          className="grad-bg text-bg font-medium rounded px-4 py-2.5 hover:opacity-90 transition-colors text-sm"
         >
           Open official apply page ↗
         </a>
@@ -265,6 +298,39 @@ export default function JobDetail({ job, kit }: { job: Job; kit: Kit | null }) {
         )}
       </div>
       {actionError && <p className="text-danger text-sm mb-4">{actionError}</p>}
+      {showUndo && job.status === 'rejected' && (
+        <div className="flex items-center gap-3 mb-4 bg-surface border border-border rounded-lg px-4 py-2.5">
+          <span className="text-sm text-muted">Rejected.</span>
+          <button
+            onClick={handleUndoReject}
+            disabled={actionBusy}
+            className="text-sm text-accent hover:underline disabled:opacity-50"
+          >
+            Undo
+          </button>
+        </div>
+      )}
+
+      {(job.status === 'interview' || job.interview_notes) && (
+        <div className="bg-surface border border-border rounded-lg p-4 mb-6">
+          <h3 className="text-sm text-muted mb-2">Interview prep notes</h3>
+          <textarea
+            rows={4}
+            value={interviewNotes}
+            onChange={(e) => setInterviewNotes(e.target.value)}
+            placeholder="What to prep, questions to ask, who you're meeting"
+            className="w-full bg-bg border border-border rounded px-3 py-2 text-sm text-text placeholder:text-muted focus:outline-none focus:border-accent mb-2"
+          />
+          <button
+            onClick={handleSaveInterviewNotes}
+            disabled={notesStatus === 'saving'}
+            className="bg-surface border border-border hover:border-accent text-text rounded px-4 py-2 text-sm transition-colors disabled:opacity-50"
+          >
+            {notesStatus === 'saving' ? 'Saving…' : 'Save notes'}
+          </button>
+          {notesStatus === 'error' && <span className="text-danger text-xs ml-2">Couldn't save.</span>}
+        </div>
+      )}
 
       <div className="bg-surface border border-border rounded-lg p-4 mb-6">
         <h3 className="text-sm text-muted mb-2">Next action</h3>
@@ -420,7 +486,7 @@ function ScoreBar({ label, value }: { label: string; value: number | null }) {
         <span>{value === null ? 'n/a' : value}</span>
       </div>
       <div className="h-1.5 bg-bg rounded-full overflow-hidden">
-        <div className="h-full bg-accent" style={{ width: `${pct}%` }} />
+        <div className="h-full grad-bg" style={{ width: `${pct}%` }} />
       </div>
     </div>
   );

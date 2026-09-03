@@ -58,6 +58,8 @@ create table if not exists jobs (
   next_date date,
   interview_at timestamptz,
   reject_reason text,
+  fingerprint text,
+  interview_notes text,
   visa_location_risk text,
   status text not null default 'new'
     check (status in ('new','saved','kit_ready','applied','interview','rejected','offer','ignored')),
@@ -125,3 +127,5 @@ create policy "rejections: own rows" on rejections
 
 create index if not exists jobs_user_status_idx on jobs (user_id, status);
 create index if not exists jobs_user_score_idx on jobs (user_id, match_score desc);
+create index if not exists jobs_fingerprint_idx on jobs (user_id, fingerprint);
+create index if not exists jobs_first_seen_idx on jobs (user_id, first_seen_at desc);

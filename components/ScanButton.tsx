@@ -43,7 +43,7 @@ export default function ScanButton() {
       <button
         onClick={handleScan}
         disabled={scanning}
-        className="w-full sm:w-auto bg-accent text-bg font-medium rounded px-4 py-3 text-sm hover:bg-accentDim transition-colors disabled:opacity-50"
+        className="w-full sm:w-auto grad-bg text-bg font-medium rounded px-4 py-3 text-sm hover:opacity-90 transition-colors disabled:opacity-50"
       >
         {scanning ? 'Scanning boards…' : 'Scan now'}
       </button>

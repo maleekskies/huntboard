@@ -68,7 +68,7 @@ export default function OnboardingWizard({ userId }: { userId: string }) {
       </p>
       <div className="h-1 bg-surface rounded-full mb-8 overflow-hidden">
         <div
-          className="h-full bg-accent transition-all"
+          className="h-full grad-bg transition-all"
           style={{ width: `${(step / TOTAL_STEPS) * 100}%` }}
         />
       </div>
@@ -155,7 +155,7 @@ export default function OnboardingWizard({ userId }: { userId: string }) {
             type="button"
             onClick={() => setStep((s) => s + 1)}
             disabled={!canAdvance}
-            className="bg-accent text-bg font-medium rounded px-5 py-2.5 hover:bg-accentDim transition-colors disabled:opacity-40"
+            className="grad-bg text-bg font-medium rounded px-5 py-2.5 hover:opacity-90 transition-colors disabled:opacity-40"
           >
             Continue
           </button>
@@ -164,7 +164,7 @@ export default function OnboardingWizard({ userId }: { userId: string }) {
             type="button"
             onClick={handleFinish}
             disabled={!canAdvance || saving}
-            className="bg-accent text-bg font-medium rounded px-5 py-2.5 hover:bg-accentDim transition-colors disabled:opacity-40"
+            className="grad-bg text-bg font-medium rounded px-5 py-2.5 hover:opacity-90 transition-colors disabled:opacity-40"
           >
             {saving ? 'Saving…' : 'Finish'}
           </button>

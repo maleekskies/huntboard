@@ -33,6 +33,8 @@ export interface Job {
   next_date: string | null;
   interview_at: string | null;
   reject_reason: string | null;
+  fingerprint: string | null;
+  interview_notes: string | null;
   visa_location_risk: string | null;
   status: JobStatus;
   created_at: string;

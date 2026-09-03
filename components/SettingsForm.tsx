@@ -262,7 +262,7 @@ export default function SettingsForm({ profile, userId }: { profile: Profile | n
         <button
           type="submit"
           disabled={status === 'saving'}
-          className="bg-accent text-bg font-medium rounded px-5 py-2.5 hover:bg-accentDim transition-colors disabled:opacity-50 self-start"
+          className="grad-bg text-bg font-medium rounded px-5 py-2.5 hover:opacity-90 transition-colors disabled:opacity-50 self-start"
         >
           {status === 'saving' ? 'Saving…' : 'Save settings'}
         </button>
