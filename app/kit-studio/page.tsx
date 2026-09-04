@@ -1,6 +1,10 @@
 import { createClient } from '@/lib/supabase/server';
 import Link from 'next/link';
+import type { Metadata } from 'next';
 import KitReview from '@/components/KitReview';
+
+export const metadata: Metadata = { title: 'Kit Studio' };
+export const dynamic = 'force-dynamic';
 
 export default async function KitStudioPage({
   searchParams,

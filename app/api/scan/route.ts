@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { scanAllSources } from '@/lib/scan/sources';
 import { computeMatch, isExcludedCompany, applyTeachingPenalty, type RecentRejection } from '@/lib/scan/score';
+import { makeFingerprint } from '@/lib/scan/fingerprint';
 
 // POST /api/scan: the "Scan now" button. Pulls from every free board API,
 // scores each listing against the user's target titles, and upserts into
@@ -40,6 +41,13 @@ export async function POST() {
   const profileLocations = profile?.locations ?? [];
   const profileSeniority = profile?.seniority ?? null;
 
+  if (targetTitles.length === 0) {
+    return NextResponse.json(
+      { error: 'Add at least one target title in Settings before scanning.' },
+      { status: 400 }
+    );
+  }
+
   const { data: recentRejections } = await supabase
     .from('rejections')
     .select('reason, term, created_at')
@@ -47,13 +55,6 @@ export async function POST() {
     .order('created_at', { ascending: false })
     .limit(50);
   const rejections: RecentRejection[] = recentRejections ?? [];
-
-  if (targetTitles.length === 0) {
-    return NextResponse.json(
-      { error: 'Add at least one target title in Settings before scanning.' },
-      { status: 400 }
-    );
-  }
 
   const sourceResults = await scanAllSources();
   const sourceErrors = sourceResults.filter((r) => r.error).map((r) => `${r.source}: ${r.error}`);
@@ -156,6 +157,7 @@ export async function POST() {
       skills_score: j.skills_score,
       seniority_score: j.seniority_score,
       location_score: j.location_score,
+      fingerprint: makeFingerprint(j.title, j.company),
       status: 'new' as const,
     }));
     const { data, error } = await supabase.from('jobs').insert(rows).select('id');
@@ -167,9 +169,9 @@ export async function POST() {
     // Status is deliberately never included here. Updates refresh the
     // listing's details and score only; existing pipeline progress is untouched.
     const updates = await Promise.allSettled(
-      toUpdate.map((j) => {
+      toUpdate.map(async (j) => {
         const id = existingIdByKey.get(`${j.source}:${j.source_id}`);
-        return supabase
+        const { error } = await supabase
           .from('jobs')
           .update({
             title: j.title,
@@ -190,9 +192,16 @@ export async function POST() {
             updated_at: new Date().toISOString(),
           })
           .eq('id', id);
+        if (error) throw new Error(error.message);
       })
     );
     updated = updates.filter((r) => r.status === 'fulfilled').length;
+    const failedUpdates = updates.filter(
+      (r): r is PromiseRejectedResult => r.status === 'rejected'
+    );
+    if (failedUpdates.length > 0) {
+      dbErrors.push(`${failedUpdates.length} update(s) failed: ${failedUpdates[0].reason}`);
+    }
   }
 
   return NextResponse.json({

@@ -1,6 +1,10 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
+import type { Metadata } from 'next';
 import OnboardingWizard from '@/components/OnboardingWizard';
+
+export const metadata: Metadata = { title: 'Set up your profile' };
+export const dynamic = 'force-dynamic';
 
 export default async function OnboardingPage() {
   const supabase = createClient();

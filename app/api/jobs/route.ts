@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { computeMatch } from '@/lib/scan/score';
+import { makeFingerprint } from '@/lib/scan/fingerprint';
 
 // GET /api/jobs?status=&minScore=: Inbox / Pipeline list, filterable.
 export async function GET(request: Request) {
@@ -81,6 +82,7 @@ export async function POST(request: Request) {
       skills_score: match.skillsScore,
       seniority_score: match.seniorityScore,
       location_score: match.locationScore,
+      fingerprint: makeFingerprint(title, company),
       status: 'new',
     })
     .select()

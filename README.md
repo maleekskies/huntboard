@@ -1,85 +1,116 @@
 # Huntboard
 
-Personal job-hunt agent + apply dashboard. Paste your CV, add a job, get a
-tailored CV, cover letter, and form answers. You review, then apply yourself.
-Nothing auto-submits.
+A personal job-search desk. Paste your CV and target titles, scan free job
+boards or paste a specific listing, and Huntboard scores each role against
+your profile with a plain-language reason. Approve a kit (tailored CV, cover
+letter, talking points) before you apply. Nothing sends on its own; every
+application goes out through you, on the real job posting's own site.
 
-This is **Phase 0** from the build plan: manual job entry, kit generation,
-downloads, status tracking. Board scanning (RemoteOK/Remotive/Himalayas) is
-Phase 1. The ingest endpoint is already wired for it, just not called yet.
+Live at: https://huntboard-nu.vercel.app
+
+## What it actually does
+
+- **Onboarding**: a four-step setup (target titles, locations, must-haves and
+  deal-breakers, master CV) before the Inbox has anything to show.
+- **Inbox**: scans RemoteOK, Remotive, Himalayas, Arbeitnow, Jobicy, and
+  Adzuna, or scores a single pasted job URL instantly. Every row shows a
+  score, a one-sentence reason, and fit/gap tags. Sortable by recency or
+  score, searchable, with bulk select for Save/Ignore/Reject. Duplicate
+  postings from different boards are flagged, not merged. Untouched listings
+  auto-archive after 30 days.
+- **Job detail**: score breakdown (domain, skills, seniority, location),
+  a next-action/date field, Approve kit / Save to pipeline / Reject-with-reason
+  actions. Rejecting softly downranks similar roles for 14 days.
+- **Pipeline**: a 4-column board (Saved, Ready to send, Applied, Interview).
+  Applied requires a follow-up date; Interview cards show the date and any
+  prep notes.
+- **Kit Studio**: the per-role kit (tailored CV, cover letter, talking
+  points, gap-handling note) with a draft/needs-edit/approved status.
+- **Settings**: target titles, locations, must-haves, deal-breakers, min
+  match cutoff, seniority, master CV (paste or upload a PDF), voice guide,
+  proof points, and a maintenance panel (re-score all jobs against current
+  filters, clear the board, export your data as JSON, send a test digest).
+- **Digest**: an optional daily email of new matches above your cutoff, via
+  Resend, triggered by Vercel Cron.
 
 ## Stack
 
-- Next.js 14.2.35 (App Router) on Vercel (free). Pinned to the 14.x line
-  (patched: 14.2.5 and earlier have a known RSC RCE, fixed in 14.2.35)
-  because `cookies()`/`headers()` are still synchronous there, which keeps
-  the Supabase server client simple. Next.js 15/16 made these async. If you
-  upgrade later, `lib/supabase/server.ts` and `middleware.ts` both need
-  `await cookies()` instead of the current sync call.
-- Supabase: Postgres, magic-link auth, and (later) file storage (free tier)
-- Groq: free LLM API for scoring, CV tailoring, and cover letters
-- `@react-pdf/renderer` for ATS-safe single-column PDF export
+- Next.js 14.2.35 (App Router) on Vercel. Pinned to the 14.x line (patched:
+  14.2.5 and earlier have a known RSC RCE, fixed in 14.2.35) because
+  `cookies()`/`headers()` are still synchronous there, which keeps the
+  Supabase server client simple. Next.js 15/16 made these async; upgrading
+  later means `lib/supabase/server.ts` and `middleware.ts` both need
+  `await cookies()`.
+- Supabase: Postgres, magic-link auth, row-level security on every table.
+- Groq: free LLM for per-role scoring, CV tailoring, and cover letters.
+- A cheap keyword-based scorer (`lib/scan/score.ts`) runs on every scanned
+  or pasted job before any LLM call, so Groq is only spent on roles you
+  actually open.
+- `@react-pdf/renderer` for ATS-safe single-column PDF export.
+- `pdf-parse` for extracting text from an uploaded CV PDF.
+- Resend for the daily digest email.
 
 ## Setup
 
 1. **Supabase project**
    - Create a free project at supabase.com
-   - In the SQL editor, run `supabase/schema.sql`
-   - In Authentication → Providers, make sure Email is enabled with magic link
-     (it is by default)
-   - Copy your Project URL and anon key from Settings → API
+   - Run `supabase/schema.sql` in the SQL editor
+   - Email auth with magic link is on by default; confirm under
+     Authentication → Providers
+   - Copy the Project URL and anon key from Settings → API
+   - Copy the service role key too (Settings → API, the secret one), only
+     needed for the digest cron
 
-2. **Groq key**
-   - Sign up free at console.groq.com/keys, no card required
-   - Create an API key
+2. **Groq key**: free, no card, from console.groq.com/keys
 
-3. **Environment**
+3. **Adzuna key**: free, no card, from developer.adzuna.com/signup (app_id
+   and app_key)
+
+4. **Resend key**: free, from resend.com, only needed if you want the daily
+   digest email
+
+5. **Environment**
    ```bash
    cp .env.example .env.local
-   # fill in NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, GROQ_API_KEY
+   # fill in every value in .env.example
    ```
 
-4. **Install and run**
+6. **Install and run**
    ```bash
    npm install
    npm run dev
    ```
    Visit http://localhost:3000. You'll be redirected to `/login`, sign in
-   with a magic link sent to your email.
-
-5. **First use**
-   - Go to Settings, paste your master CV, fill in target titles and voice guide
-   - Go to Inbox, click "Add job", paste a job URL + description
-   - Open the job, click "Generate kit"
-   - Review the tailored CV / cover letter / form packet tabs
-   - Click "Open official apply page" and apply on the real site
-   - Set status to Applied
+   with the magic link sent to your email, then land on the four-step setup.
 
 ## Deploy
 
-Push to a GitHub repo, import into Vercel, add the same three env vars in
-Vercel's project settings. Free Hobby tier covers this.
+`npx vercel --prod`, or push to GitHub and import into Vercel. Add every
+variable from `.env.example` in the project's Environment Variables
+settings, plus `CRON_SECRET` if you want the digest endpoint to require a
+shared secret (optional; Vercel Cron can call it either way).
+
+`vercel.json` schedules `/api/digest` once a day. It only sends to accounts
+with the digest toggle on in Settings, and only when there's something above
+their cutoff to report.
 
 ## Non-negotiable rules (baked into the prompts, not just docs)
 
-1. Never invent experience, titles, dates, metrics, or employers. The LLM
-   prompts in `lib/llm/prompts.ts` state this explicitly and are grounded
-   only in `profile.master_cv_text`.
-2. Tailoring = reorder + rephrase real facts, never fabrication.
-3. Every kit stores a `facts_used` audit list, shown under the job detail page.
-4. Apply is always manual. "Open official apply page" opens the real URL;
+1. Never invent experience, titles, dates, metrics, or employers. The
+   prompts in `lib/llm/prompts.ts` say this explicitly and are grounded only
+   in `profile.master_cv_text`.
+2. Tailoring means reordering and rephrasing real facts, never fabrication.
+3. Every kit stores a `facts_used` audit list, shown on the job detail page.
+4. Applying is always manual. "Open official apply page" opens the real URL;
    there is no submit button anywhere in this app.
-5. CV/cover letter text lives in your own Supabase project. The only third
-   party that sees it is Groq, when generating.
+5. Your CV and cover letters live in your own Supabase project. The only
+   third party that sees them is Groq, at generation time.
 
-## What's not built yet (see the original handoff for the full roadmap)
+## What's not built
 
-- **Phase 1**: automatic scanning of RemoteOK/Remotive/Himalayas/Arbeitnow/Jobicy
-  into the Inbox via `/api/ingest/jobs` (already accepts the payload; needs
-  a scanner script or GitHub Action to call it)
-- **Phase 2**: Greenhouse/Lever/Ashby ATS-aware packets, scheduled daily scans
-- **Phase 3 (optional)**: Playwright-assisted form fill with a confirm gate,
-  email digests, STAR-story bank
-- Kanban drag-and-drop (currently tap-to-open, change status on the job page)
-- File storage for generated PDFs (currently generated on-demand, not persisted
-  to Supabase Storage. Add this if you want a history of exact PDFs sent)
+- The job detail page is a full page, not a slide-out drawer.
+- The tailored CV shown in Kit Studio is reordered and rephrased, not a
+  true line-level diff against the master CV.
+- Kanban drag-and-drop; status changes happen from a dropdown on the job
+  page.
+- Company-specific ATS integrations (Greenhouse, Lever, Ashby job boards).

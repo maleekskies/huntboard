@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { buildDigestEmailHtml } from '@/lib/digest-email';
 
 // GET /api/digest
 // Meant to be hit once a day by Vercel Cron (see vercel.json). Runs with the
@@ -59,17 +60,7 @@ export async function GET(request: Request) {
     }
     if (!jobs || jobs.length === 0) continue;
 
-    const rows = jobs
-      .map((j) => `<tr><td style="padding:6px 0">${j.title} at ${j.company}</td><td style="padding:6px 0;text-align:right">${j.match_score}</td></tr>`)
-      .join('');
-
-    const html = `
-      <div style="font-family:sans-serif;max-width:480px">
-        <h2>${jobs.length} new match${jobs.length > 1 ? 'es' : ''} above your cutoff</h2>
-        <table style="width:100%;border-collapse:collapse">${rows}</table>
-        <p><a href="https://huntboard-nu.vercel.app">Open Huntboard</a></p>
-      </div>
-    `;
+    const html = buildDigestEmailHtml(jobs);
 
     try {
       const res = await fetch('https://api.resend.com/emails', {

@@ -1,0 +1,11 @@
+# Huntboard
+
+Huntboard is a personal job-search tool. A single user pastes their CV and
+target titles, then Huntboard scores incoming job listings against that
+profile, explains why each one matched, and drafts a tailored CV and cover
+letter for review. Sending an application is always a manual, human action;
+the tool never submits anything on its own.
+
+Huntboard is not a public job board and not an auto-apply service. It has no
+public content pages beyond the sign-in screen; everything else requires
+authentication and is specific to the one account that owns it.

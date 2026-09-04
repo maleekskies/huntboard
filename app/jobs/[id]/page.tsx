@@ -1,6 +1,10 @@
 import { createClient } from '@/lib/supabase/server';
 import { notFound } from 'next/navigation';
+import type { Metadata } from 'next';
 import JobDetail from '@/components/JobDetail';
+
+export const metadata: Metadata = { title: 'Job' };
+export const dynamic = 'force-dynamic';
 
 export default async function JobDetailPage({ params }: { params: { id: string } }) {
   const supabase = createClient();

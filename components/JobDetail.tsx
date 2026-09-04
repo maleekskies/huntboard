@@ -51,10 +51,12 @@ export default function JobDetail({ job, kit }: { job: Job; kit: Kit | null }) {
       return;
     }
     const supabase = createClient();
-    const { error } = await supabase
-      .from('jobs')
-      .update({ status: nextStatus, updated_at: new Date().toISOString() })
-      .eq('id', job.id);
+    const update: Record<string, unknown> = { status: nextStatus, updated_at: new Date().toISOString() };
+    if (nextStatus === 'applied') {
+      update.next_action = nextAction || null;
+      update.next_date = nextDate || null;
+    }
+    const { error } = await supabase.from('jobs').update(update).eq('id', job.id);
     if (error) {
       setStatusError(error.message);
     } else {

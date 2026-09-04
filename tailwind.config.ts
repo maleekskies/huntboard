@@ -13,7 +13,6 @@ const config: Config = {
         muted: '#7C88A0',
         accent: '#34E4C8',
         accentDim: '#22A88F',
-        violet: '#A05CFF',
         danger: '#E2574C',
         good: '#4CAF7D',
       },

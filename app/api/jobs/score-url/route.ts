@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { computeMatch } from '@/lib/scan/score';
+import { computeMatch, isExcludedCompany } from '@/lib/scan/score';
+import { makeFingerprint } from '@/lib/scan/fingerprint';
 
 // POST /api/jobs/score-url
 // Body: { url: string }
@@ -78,6 +79,13 @@ export async function POST(request: Request) {
 
   const company = new URL(url).hostname.replace(/^www\./, '');
 
+  if (isExcludedCompany(company, profile?.exclude_companies ?? [])) {
+    return NextResponse.json(
+      { error: `${company} is on your excluded companies list in Settings.` },
+      { status: 422 }
+    );
+  }
+
   const match = computeMatch(
     rawTitle,
     description,
@@ -108,6 +116,7 @@ export async function POST(request: Request) {
       skills_score: match.skillsScore,
       seniority_score: match.seniorityScore,
       location_score: match.locationScore,
+      fingerprint: makeFingerprint(rawTitle, company),
       status: 'new',
     })
     .select()

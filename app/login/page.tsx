@@ -29,9 +29,7 @@ export default function LoginPage() {
   return (
     <main className="min-h-screen flex flex-col items-center justify-center bg-bg px-6 py-16">
       <div className="w-full max-w-md">
-        <h1 className="font-display text-4xl text-text mb-3">
-          Hunt<span className="text-accent">board</span>
-        </h1>
+        <h1 className="font-display text-4xl grad-text mb-3">Huntboard</h1>
         <p className="text-text text-lg mb-1">Roles scored against your profile.</p>
         <p className="text-muted mb-8">Nothing sends until you say so.</p>
 
@@ -60,7 +58,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={status === 'sending'}
-              className="bg-accent text-bg font-medium rounded px-4 py-3 hover:bg-accentDim transition-colors disabled:opacity-50"
+              className="grad-bg text-bg font-medium rounded px-4 py-3 hover:opacity-90 transition-colors disabled:opacity-50"
             >
               {status === 'sending' ? 'Sending…' : 'Send magic link'}
             </button>

@@ -1,5 +1,10 @@
 import { createClient } from '@/lib/supabase/server';
 import SettingsForm from '@/components/SettingsForm';
+import MaintenancePanel from '@/components/MaintenancePanel';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = { title: 'Settings' };
+export const dynamic = 'force-dynamic';
 
 export default async function SettingsPage() {
   const supabase = createClient();
@@ -44,6 +49,8 @@ export default async function SettingsPage() {
           </ul>
         </div>
       )}
+
+      <MaintenancePanel />
     </div>
   );
 }

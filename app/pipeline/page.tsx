@@ -1,5 +1,9 @@
 import { createClient } from '@/lib/supabase/server';
 import Link from 'next/link';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = { title: 'Pipeline' };
+export const dynamic = 'force-dynamic';
 
 const COLUMNS = [
   { status: 'saved', label: 'Saved' },
@@ -16,7 +20,7 @@ export default async function PipelinePage() {
 
   const { data: jobs } = await supabase
     .from('jobs')
-    .select('id, title, company, status, match_score, next_action, next_date, interview_at, updated_at')
+    .select('id, title, company, status, match_score, next_action, next_date, interview_at, interview_notes, updated_at')
     .eq('user_id', user!.id)
     .in('status', COLUMNS.map((c) => c.status))
     .order('updated_at', { ascending: false });
@@ -64,13 +68,16 @@ export default async function PipelinePage() {
                       Interview: {new Date(job.interview_at).toLocaleString()}
                     </p>
                   )}
+                  {job.status === 'interview' && job.interview_notes && (
+                    <p className="text-muted text-xs mt-1.5 truncate">Notes: {job.interview_notes}</p>
+                  )}
                   {job.status === 'applied' && job.next_date && (
                     <p className="text-accent text-xs mt-1.5">Follow up {job.next_date}</p>
                   )}
                   {job.status === 'applied' && !job.next_date && (
                     <p className="text-danger text-xs mt-1.5">No follow-up date set</p>
                   )}
-                  {job.next_action && job.status !== 'applied' && (
+                  {job.next_action && (
                     <p className="text-muted text-xs mt-1.5 truncate">{job.next_action}</p>
                   )}
                   {kitStatusByJob.has(job.id) && (

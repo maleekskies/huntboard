@@ -13,20 +13,25 @@ export default function AddJobForm() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setStatus('saving');
-    const res = await fetch('/api/jobs', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form),
-    });
-    if (res.ok) {
-      const { job } = await res.json();
-      setOpen(false);
-      setForm({ title: '', company: '', url: '', location: '', description: '' });
-      router.push(`/jobs/${job.id}`);
-    } else {
-      const body = await res.json().catch(() => ({}));
+    try {
+      const res = await fetch('/api/jobs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      });
+      if (res.ok) {
+        const { job } = await res.json();
+        setOpen(false);
+        setForm({ title: '', company: '', url: '', location: '', description: '' });
+        router.push(`/jobs/${job.id}`);
+      } else {
+        const body = await res.json().catch(() => ({}));
+        setStatus('error');
+        setErrorMessage(body.error ?? `Request failed (${res.status}).`);
+      }
+    } catch (err) {
       setStatus('error');
-      setErrorMessage(body.error ?? `Request failed (${res.status}).`);
+      setErrorMessage(err instanceof Error ? err.message : 'Request failed to complete.');
     }
   }
 

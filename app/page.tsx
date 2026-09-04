@@ -1,15 +1,21 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
+import type { Metadata } from 'next';
 import JobList from '@/components/JobList';
 import AddJobForm from '@/components/AddJobForm';
 import ScanButton from '@/components/ScanButton';
 import ScoreUrlForm from '@/components/ScoreUrlForm';
 
+export const metadata: Metadata = { title: 'Inbox' };
+export const dynamic = 'force-dynamic';
+
+const STALE_DAYS = 30;
+
 export default async function InboxPage({
   searchParams,
 }: {
-  searchParams: { first_run?: string; minScore?: string };
+  searchParams: { first_run?: string; minScore?: string; sort?: string; q?: string };
 }) {
   const supabase = createClient();
   const {
@@ -24,15 +30,37 @@ export default async function InboxPage({
 
   if (!profile?.onboarded_at) redirect('/onboarding');
 
+  // Auto-archive listings nobody touched in 30 days, so the board doesn't
+  // just grow forever. Only ever touches unreviewed 'new' jobs, never
+  // anything already saved or in motion.
+  const staleCutoff = new Date(Date.now() - STALE_DAYS * 24 * 60 * 60 * 1000).toISOString();
+  await supabase
+    .from('jobs')
+    .update({ status: 'ignored', updated_at: new Date().toISOString() })
+    .eq('user_id', user!.id)
+    .eq('status', 'new')
+    .lt('updated_at', staleCutoff);
+
   const minMatch = profile.min_match ?? 70;
   const activeMinScore = searchParams.minScore ? Number(searchParams.minScore) : minMatch;
+  const sort = searchParams.sort === 'score' ? 'score' : 'recent';
+  const query = searchParams.q?.trim();
 
-  const { data: jobs } = await supabase
-    .from('jobs')
-    .select('*')
-    .eq('user_id', user!.id)
-    .order('match_score', { ascending: false, nullsFirst: false })
-    .order('first_seen_at', { ascending: false });
+  let jobsQuery = supabase.from('jobs').select('*').eq('user_id', user!.id);
+
+  if (query) {
+    jobsQuery = jobsQuery.or(`title.ilike.%${query}%,company.ilike.%${query}%`);
+  }
+
+  if (sort === 'score') {
+    jobsQuery = jobsQuery
+      .order('match_score', { ascending: false, nullsFirst: false })
+      .order('first_seen_at', { ascending: false });
+  } else {
+    jobsQuery = jobsQuery.order('first_seen_at', { ascending: false });
+  }
+
+  const { data: jobs } = await jobsQuery;
 
   const all = jobs ?? [];
   const visible = all.filter((j) => (j.match_score ?? 0) >= activeMinScore);
@@ -44,6 +72,14 @@ export default async function InboxPage({
   const avgMatch = visible.length
     ? Math.round(visible.reduce((sum, j) => sum + (j.match_score ?? 0), 0) / visible.length)
     : null;
+
+  function sortLink(target: string) {
+    const params = new URLSearchParams();
+    if (query) params.set('q', query);
+    if (activeMinScore !== minMatch) params.set('minScore', String(activeMinScore));
+    params.set('sort', target);
+    return `/?${params.toString()}`;
+  }
 
   return (
     <div className="px-6 py-10 pb-24 md:pb-10">
@@ -72,20 +108,41 @@ export default async function InboxPage({
         <AddJobForm />
       </div>
 
-      <div className="mb-6">
+      <div className="mb-4">
         <ScoreUrlForm />
       </div>
 
-      {activeMinScore > 0 && (
-        <div className="flex items-center gap-2 mb-4 text-xs text-muted">
-          <span>Showing {activeMinScore}+ only.</span>
-          {activeMinScore > 0 && (
+      <form className="mb-4" action="/" method="get">
+        {sort !== 'recent' && <input type="hidden" name="sort" value={sort} />}
+        <input
+          type="text"
+          name="q"
+          defaultValue={query ?? ''}
+          placeholder="Search by title or company"
+          className="w-full sm:w-80 bg-surface border border-border rounded px-3 py-2 text-sm text-text placeholder:text-muted focus:outline-none focus:border-accent"
+        />
+      </form>
+
+      <div className="flex items-center gap-4 mb-4 text-xs">
+        <div className="flex items-center gap-2 text-muted">
+          <span>Sort:</span>
+          <Link href={sortLink('recent')} className={sort === 'recent' ? 'text-text font-medium' : 'hover:text-text'}>
+            Recent
+          </Link>
+          <span>·</span>
+          <Link href={sortLink('score')} className={sort === 'score' ? 'text-text font-medium' : 'hover:text-text'}>
+            Score, highest first
+          </Link>
+        </div>
+        {activeMinScore > 0 && (
+          <div className="text-muted">
+            <span>Showing {activeMinScore}+ only.</span>{' '}
             <Link href="/?minScore=0" className="text-accent hover:underline">
               Show everything
             </Link>
-          )}
-        </div>
-      )}
+          </div>
+        )}
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-6 items-start">
         <JobList jobs={visible} />
@@ -134,7 +191,7 @@ export default async function InboxPage({
 function Stat({ label, value, sub }: { label: string; value: number | string; sub?: string }) {
   return (
     <div className="bg-surface border border-border rounded-lg px-4 py-3">
-      <p className="text-2xl font-display text-accent tabular-nums">{value}</p>
+      <p className="text-2xl font-display font-bold grad-text tabular-nums">{value}</p>
       <p className="text-xs text-muted">{label}</p>
       {sub && <p className="text-xs text-muted mt-0.5">{sub}</p>}
     </div>
