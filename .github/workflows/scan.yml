@@ -1,0 +1,17 @@
+name: Scan job boards
+
+on:
+  schedule:
+    - cron: '0 6 * * *'
+    - cron: '0 13 * * *'
+    - cron: '0 20 * * *'
+  workflow_dispatch: {}
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call the scan endpoint
+        run: |
+          curl -sf -X GET "https://huntboard-nu.vercel.app/api/cron/scan" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
