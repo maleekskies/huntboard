@@ -30,6 +30,11 @@ Live at: https://huntboard-nu.vercel.app
   match cutoff, seniority, master CV (paste or upload a PDF), voice guide,
   proof points, and a maintenance panel (re-score all jobs against current
   filters, clear the board, export your data as JSON, send a test digest).
+- **Automated scan**: runs 3x a day via a GitHub Actions schedule for every
+  account with target titles set, same logic as the "Scan now" button.
+  Vercel's own cron can't run more than once a day on the Hobby plan, so
+  this uses GitHub Actions instead. No action needed beyond setting target
+  titles in Settings.
 - **Digest**: an optional daily email of new matches above your cutoff, via
   Resend, triggered by Vercel Cron.
 
@@ -55,19 +60,22 @@ Live at: https://huntboard-nu.vercel.app
 1. **Supabase project**
    - Create a free project at supabase.com
    - Run `supabase/schema.sql` in the SQL editor
-   - Email auth with magic link is on by default; confirm under
-     Authentication → Providers
+   - Email auth with magic link is on by default, but Supabase's built-in
+     email sender caps out at 2 emails/day, which isn't enough for real use.
+     Under Authentication → SMTP Settings, enable custom SMTP with Resend
+     (host `smtp.resend.com`, port 465, username `resend`, password your
+     Resend API key) to raise that to 100/day for free
    - Copy the Project URL and anon key from Settings → API
-   - Copy the service role key too (Settings → API, the secret one), only
-     needed for the digest cron
+   - Copy the service role key too (Settings → API, the secret one), needed
+     for the digest and automated scan
 
 2. **Groq key**: free, no card, from console.groq.com/keys
 
 3. **Adzuna key**: free, no card, from developer.adzuna.com/signup (app_id
    and app_key)
 
-4. **Resend key**: free, from resend.com, only needed if you want the daily
-   digest email
+4. **Resend key**: free, from resend.com, used for both the daily digest
+   email and the SMTP fix above
 
 5. **Environment**
    ```bash
@@ -87,12 +95,33 @@ Live at: https://huntboard-nu.vercel.app
 
 `npx vercel --prod`, or push to GitHub and import into Vercel. Add every
 variable from `.env.example` in the project's Environment Variables
-settings, plus `CRON_SECRET` if you want the digest endpoint to require a
-shared secret (optional; Vercel Cron can call it either way).
+settings, including `CRON_SECRET`, a secret string you make up yourself.
+Unlike the digest (called by Vercel's own trusted cron), the scan endpoint
+is called from GitHub Actions over the public internet, so `CRON_SECRET`
+actually needs to be set this time, not left optional.
 
-`vercel.json` schedules `/api/digest` once a day. It only sends to accounts
-with the digest toggle on in Settings, and only when there's something above
-their cutoff to report.
+`vercel.json` schedules the digest at 8am UTC, after the automated scan
+(below) has had a chance to run, so there's something fresh to report.
+
+### Automated scanning (3x/day)
+
+Vercel's Hobby plan caps cron at once a day, not enough for 3x/day, so
+scanning runs via a GitHub Actions schedule instead
+(`.github/workflows/scan.yml`), against the `maleekskies/huntboard` repo:
+
+1. Upload the full contents of this project to the GitHub repo the same
+   way you already deploy: on the repo's page, "Add file" → "Upload files",
+   drag everything in, commit to `main`. Vercel picks it up and redeploys
+   automatically.
+2. Add `CRON_SECRET` as an env var on Vercel (Settings → Environment
+   Variables, any secret string you make up)
+3. On the repo's GitHub page: Settings → Secrets and variables → Actions
+   → New repository secret. Name it `CRON_SECRET`, paste the exact same
+   value from step 2
+4. Open the repo's Actions tab, click "Scan job boards" on the left, then
+   "Run workflow" to fire it once manually and confirm it works
+
+After that it runs on its own at 6am, 1pm, and 8pm UTC daily.
 
 ## Non-negotiable rules (baked into the prompts, not just docs)
 

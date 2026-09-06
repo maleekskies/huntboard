@@ -105,7 +105,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
         talking_points: score.why.slice(0, 3),
         gap_note: score.gaps.length > 0 ? score.gaps.join(' ') : null,
         status: 'draft',
-        model_used: 'groq/llama-3.3-70b-versatile',
+        model_used: 'groq/openai/gpt-oss-120b',
       })
       .select()
       .single();

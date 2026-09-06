@@ -2,12 +2,13 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { Inbox as InboxIcon, Kanban, FileText, Settings as SettingsIcon } from 'lucide-react';
 
 const NAV_ITEMS = [
-  { href: '/', label: 'Inbox' },
-  { href: '/pipeline', label: 'Pipeline' },
-  { href: '/kit-studio', label: 'Kit Studio' },
-  { href: '/settings', label: 'Settings' },
+  { href: '/', label: 'Inbox', icon: InboxIcon },
+  { href: '/pipeline', label: 'Pipeline', icon: Kanban },
+  { href: '/kit-studio', label: 'Kit Studio', icon: FileText },
+  { href: '/settings', label: 'Settings', icon: SettingsIcon },
 ];
 
 export default function Sidebar() {
@@ -39,19 +40,27 @@ export default function Sidebar() {
         })}
       </nav>
 
-      {/* Mobile: bottom tab bar, big tap targets */}
-      <nav className="md:hidden fixed bottom-0 inset-x-0 z-20 bg-surface border-t border-border flex">
+      {/* Mobile: floating pill nav, icons with a gradient badge on the active item */}
+      <nav className="md:hidden fixed bottom-4 inset-x-4 z-20 bg-surface/95 backdrop-blur border border-border rounded-2xl shadow-lg flex px-1 py-1">
         {NAV_ITEMS.map((item) => {
           const active = pathname === item.href;
+          const Icon = item.icon;
           return (
             <Link
               key={item.href}
               href={item.href}
-              className={`flex-1 text-center py-4 text-sm ${
-                active ? 'text-accent font-medium' : 'text-muted'
-              }`}
+              className="flex-1 flex flex-col items-center gap-1 py-2 rounded-xl transition-colors"
             >
-              {item.label}
+              <span
+                className={`flex items-center justify-center w-9 h-9 rounded-full transition-all duration-200 ${
+                  active ? 'grad-bg scale-105' : 'scale-100'
+                }`}
+              >
+                <Icon size={18} className={active ? 'text-bg' : 'text-muted'} strokeWidth={2} />
+              </span>
+              <span className={`text-[11px] transition-colors ${active ? 'text-text font-medium' : 'text-muted'}`}>
+                {item.label}
+              </span>
             </Link>
           );
         })}

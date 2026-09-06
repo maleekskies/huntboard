@@ -92,6 +92,21 @@ export interface MatchResult {
   hardExcluded: boolean;
 }
 
+const DEAL_BREAKER_FILLER_WORDS = new Set([
+  'role', 'roles', 'position', 'positions', 'job', 'jobs', 'only', 'based',
+]);
+
+// A deal-breaker phrase like "senior roles" should exclude a listing titled
+// "Senior Technical Product Manager", even though that exact phrase never
+// appears in the text. Match on the meaningful words instead of requiring
+// the literal phrase.
+function matchesDealBreaker(haystack: string, phrase: string): boolean {
+  const words = tokenize(phrase).filter((w) => !DEAL_BREAKER_FILLER_WORDS.has(w));
+  if (words.length === 0) return false;
+  const haystackWords = new Set(tokenize(haystack));
+  return words.every((w) => haystackWords.has(w));
+}
+
 // Minimum-viable scorer (brief section 5): title overlap, must-have presence,
 // seniority and location fit, deal-breaker hard-exclude. No embeddings, no
 // LLM call. Every job gets a `why` sentence and tags here, not just a
@@ -109,7 +124,7 @@ export function computeMatch(
   const haystack = `${title} ${description ?? ''}`.toLowerCase();
 
   for (const breaker of dealBreakers) {
-    if (breaker.trim() && haystack.includes(breaker.toLowerCase())) {
+    if (breaker.trim() && matchesDealBreaker(haystack, breaker)) {
       return {
         score: 0,
         domainScore: 0,

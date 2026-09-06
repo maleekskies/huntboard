@@ -42,7 +42,7 @@ export default async function InboxPage({
     .lt('updated_at', staleCutoff);
 
   const minMatch = profile.min_match ?? 70;
-  const activeMinScore = searchParams.minScore ? Number(searchParams.minScore) : minMatch;
+  const activeMinScore = searchParams.minScore ? Number(searchParams.minScore) : 0;
   const sort = searchParams.sort === 'score' ? 'score' : 'recent';
   const query = searchParams.q?.trim();
 
@@ -55,9 +55,10 @@ export default async function InboxPage({
   if (sort === 'score') {
     jobsQuery = jobsQuery
       .order('match_score', { ascending: false, nullsFirst: false })
-      .order('first_seen_at', { ascending: false });
+      .order('first_seen_at', { ascending: false })
+      .order('id', { ascending: false });
   } else {
-    jobsQuery = jobsQuery.order('first_seen_at', { ascending: false });
+    jobsQuery = jobsQuery.order('first_seen_at', { ascending: false }).order('id', { ascending: false });
   }
 
   const { data: jobs } = await jobsQuery;
@@ -92,7 +93,11 @@ export default async function InboxPage({
       <div className="mb-6">
         <h1 className="font-display text-3xl text-text mb-1">Inbox</h1>
         <p className="text-muted">
-          {all.length ? `${visible.length} roles at or above ${activeMinScore} match.` : 'Nothing here yet.'}
+          {all.length
+            ? activeMinScore > 0
+              ? `${visible.length} roles at or above ${activeMinScore} match.`
+              : `${visible.length} roles, ${sort === 'score' ? 'highest match first' : 'newest first'}.`
+            : 'Nothing here yet.'}
         </p>
       </div>
 
@@ -134,11 +139,17 @@ export default async function InboxPage({
             Score, highest first
           </Link>
         </div>
-        {activeMinScore > 0 && (
+        {activeMinScore > 0 ? (
           <div className="text-muted">
             <span>Showing {activeMinScore}+ only.</span>{' '}
             <Link href="/?minScore=0" className="text-accent hover:underline">
               Show everything
+            </Link>
+          </div>
+        ) : (
+          <div className="text-muted">
+            <Link href={`/?minScore=${minMatch}`} className="text-accent hover:underline">
+              Only show {minMatch}+ match
             </Link>
           </div>
         )}

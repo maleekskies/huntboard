@@ -22,6 +22,7 @@ function companyMark(company: string): string {
 
 export default function JobList({ jobs }: { jobs: Job[] }) {
   const router = useRouter();
+  const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,6 +42,16 @@ export default function JobList({ jobs }: { jobs: Job[] }) {
     });
   }
 
+  function toggleSelectAll() {
+    setSelected((prev) => (prev.size === jobs.length ? new Set() : new Set(jobs.map((j) => j.id))));
+  }
+
+  function exitSelectMode() {
+    setSelectMode(false);
+    setSelected(new Set());
+    setError(null);
+  }
+
   async function runBulkAction(action: 'ignore' | 'reject' | 'save') {
     setBusy(true);
     setError(null);
@@ -56,7 +67,7 @@ export default function JobList({ jobs }: { jobs: Job[] }) {
         setBusy(false);
         return;
       }
-      setSelected(new Set());
+      exitSelectMode();
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Bulk action failed to complete.');
@@ -75,35 +86,56 @@ export default function JobList({ jobs }: { jobs: Job[] }) {
 
   return (
     <div>
-      {selected.size > 0 && (
-        <div className="flex items-center gap-3 mb-3 bg-surface border border-border rounded-lg px-4 py-2.5">
-          <span className="text-sm text-text">{selected.size} selected</span>
+      <div className="flex items-center gap-3 mb-3">
+        {!selectMode ? (
           <button
-            onClick={() => runBulkAction('save')}
-            disabled={busy}
-            className="text-xs text-good hover:underline disabled:opacity-50"
+            onClick={() => setSelectMode(true)}
+            className="text-xs text-muted hover:text-text border border-border rounded-full px-3 py-1"
           >
-            Save to pipeline
+            Select
           </button>
-          <button
-            onClick={() => runBulkAction('ignore')}
-            disabled={busy}
-            className="text-xs text-muted hover:underline disabled:opacity-50"
-          >
-            Ignore
-          </button>
-          <button
-            onClick={() => runBulkAction('reject')}
-            disabled={busy}
-            className="text-xs text-danger hover:underline disabled:opacity-50"
-          >
-            Reject
-          </button>
-          <button onClick={() => setSelected(new Set())} className="text-xs text-muted hover:text-text ml-auto">
-            Clear selection
-          </button>
-        </div>
-      )}
+        ) : (
+          <div className="flex items-center gap-3 flex-wrap bg-surface border border-border rounded-lg px-4 py-2.5 w-full">
+            <label className="flex items-center gap-2 text-sm text-text cursor-pointer">
+              <input
+                type="checkbox"
+                checked={selected.size === jobs.length}
+                onChange={toggleSelectAll}
+                className="accent-accent"
+              />
+              {selected.size > 0 ? `${selected.size} selected` : 'Select all'}
+            </label>
+            {selected.size > 0 && (
+              <>
+                <button
+                  onClick={() => runBulkAction('save')}
+                  disabled={busy}
+                  className="text-xs text-good hover:underline disabled:opacity-50"
+                >
+                  Save to pipeline
+                </button>
+                <button
+                  onClick={() => runBulkAction('ignore')}
+                  disabled={busy}
+                  className="text-xs text-muted hover:underline disabled:opacity-50"
+                >
+                  Ignore
+                </button>
+                <button
+                  onClick={() => runBulkAction('reject')}
+                  disabled={busy}
+                  className="text-xs text-danger hover:underline disabled:opacity-50"
+                >
+                  Reject
+                </button>
+              </>
+            )}
+            <button onClick={exitSelectMode} className="text-xs text-muted hover:text-text ml-auto">
+              Done
+            </button>
+          </div>
+        )}
+      </div>
       {error && <p className="text-danger text-xs mb-3">{error}</p>}
 
       <ul className="flex flex-col gap-2">
@@ -114,15 +146,23 @@ export default function JobList({ jobs }: { jobs: Job[] }) {
           const isSelected = selected.has(job.id);
           return (
             <li key={job.id} className="flex items-start gap-2">
-              <input
-                type="checkbox"
-                checked={isSelected}
-                onChange={() => toggle(job.id)}
-                className="mt-6 accent-accent shrink-0"
-                aria-label={`Select ${job.title}`}
-              />
+              {selectMode && (
+                <input
+                  type="checkbox"
+                  checked={isSelected}
+                  onChange={() => toggle(job.id)}
+                  className="mt-6 accent-accent shrink-0"
+                  aria-label={`Select ${job.title}`}
+                />
+              )}
               <Link
                 href={`/jobs/${job.id}`}
+                onClick={(e) => {
+                  if (selectMode) {
+                    e.preventDefault();
+                    toggle(job.id);
+                  }
+                }}
                 className={`flex-1 grid grid-cols-[52px_1fr_auto] gap-3 items-start bg-surface hover:bg-surfaceHover border rounded-lg px-4 py-4 transition-colors ${
                   isSelected ? 'border-accent' : 'border-border'
                 }`}
@@ -169,11 +209,17 @@ export default function JobList({ jobs }: { jobs: Job[] }) {
                 </div>
 
                 <div className="text-right shrink-0">
-                  {job.match_score !== null && (
-                    <span className={`text-xl font-display font-bold tabular-nums ${scoreClass(job.match_score)}`}>
-                      {job.match_score}
-                    </span>
-                  )}
+                  {job.match_score !== null &&
+                    (job.domain_score === null &&
+                    job.skills_score === null &&
+                    job.seniority_score === null &&
+                    job.location_score === null ? (
+                      <span className="text-xs text-muted">unscored</span>
+                    ) : (
+                      <span className={`text-xl font-display font-bold tabular-nums ${scoreClass(job.match_score)}`}>
+                        {job.match_score}
+                      </span>
+                    ))}
                 </div>
               </Link>
             </li>

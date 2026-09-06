@@ -203,16 +203,30 @@ export default function JobDetail({ job, kit }: { job: Job; kit: Kit | null }) {
 
       {job.match_score !== null && (
         <div className="bg-surface border border-border rounded-lg p-4 mb-4">
-          <div className="flex items-center gap-3 mb-3">
-            <span className="grad-text text-2xl font-display font-bold tabular-nums">{job.match_score}</span>
-            <span className="text-muted text-sm">overall match</span>
-          </div>
-          <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-            <ScoreBar label="Domain" value={job.domain_score} />
-            <ScoreBar label="Skills" value={job.skills_score} />
-            <ScoreBar label="Seniority" value={job.seniority_score} />
-            <ScoreBar label="Location" value={job.location_score} />
-          </div>
+          {job.domain_score === null &&
+          job.skills_score === null &&
+          job.seniority_score === null &&
+          job.location_score === null ? (
+            <div className="flex items-center gap-3">
+              <span className="text-muted text-sm">
+                Scored before the current matcher existed, no breakdown available.
+              </span>
+              <span className="text-muted text-xs">Fix from Settings, Maintenance, Re-score all jobs.</span>
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center gap-3 mb-3">
+                <span className="grad-text text-2xl font-display font-bold tabular-nums">{job.match_score}</span>
+                <span className="text-muted text-sm">overall match</span>
+              </div>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                <ScoreBar label="Domain" value={job.domain_score} />
+                <ScoreBar label="Skills" value={job.skills_score} />
+                <ScoreBar label="Seniority" value={job.seniority_score} />
+                <ScoreBar label="Location" value={job.location_score} />
+              </div>
+            </>
+          )}
         </div>
       )}
 

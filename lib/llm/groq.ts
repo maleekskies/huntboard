@@ -1,5 +1,9 @@
 import Groq from 'groq-sdk';
 
+// Groq deprecated llama-3.3-70b-versatile (announced June 17, 2026,
+// decommissioned August 16, 2026). This is their recommended replacement.
+const MODEL = 'openai/gpt-oss-120b';
+
 // Lazy singleton: instantiating Groq({ apiKey }) at module load time throws
 // during Next's build-time page-data collection if the key isn't present in
 // that environment, even though it's only ever actually needed at runtime.
@@ -16,7 +20,7 @@ function getGroq(): Groq {
 // imports the groq-sdk directly.
 export async function completeJSON<T>(systemPrompt: string, userPrompt: string): Promise<T> {
   const completion = await getGroq().chat.completions.create({
-    model: 'llama-3.3-70b-versatile',
+    model: MODEL,
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt },
@@ -31,7 +35,7 @@ export async function completeJSON<T>(systemPrompt: string, userPrompt: string):
 
 export async function completeText(systemPrompt: string, userPrompt: string): Promise<string> {
   const completion = await getGroq().chat.completions.create({
-    model: 'llama-3.3-70b-versatile',
+    model: MODEL,
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt },
