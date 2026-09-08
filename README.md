@@ -1,145 +1,63 @@
-# Huntboard
+# maleekskies: Portfolio
 
-A personal job-search desk. Paste your CV and target titles, scan free job
-boards or paste a specific listing, and Huntboard scores each role against
-your profile with a plain-language reason. Approve a kit (tailored CV, cover
-letter, talking points) before you apply. Nothing sends on its own; every
-application goes out through you, on the real job posting's own site.
+Personal portfolio site for **maleekskies**, a product manager and content writer working at the intersection of Web3, AI, and practical problem solving.
 
-Live at: https://huntboard-nu.vercel.app
+**Live site:** [maleekskies.vercel.app](https://maleekskies.vercel.app)
 
-## What it actually does
+## About
 
-- **Onboarding**: a four-step setup (target titles, locations, must-haves and
-  deal-breakers, master CV) before the Inbox has anything to show.
-- **Inbox**: scans RemoteOK, Remotive, Himalayas, Arbeitnow, Jobicy, and
-  Adzuna, or scores a single pasted job URL instantly. Every row shows a
-  score, a one-sentence reason, and fit/gap tags. Sortable by recency or
-  score, searchable, with bulk select for Save/Ignore/Reject. Duplicate
-  postings from different boards are flagged, not merged. Untouched listings
-  auto-archive after 30 days.
-- **Job detail**: score breakdown (domain, skills, seniority, location),
-  a next-action/date field, Approve kit / Save to pipeline / Reject-with-reason
-  actions. Rejecting softly downranks similar roles for 14 days.
-- **Pipeline**: a 4-column board (Saved, Ready to send, Applied, Interview).
-  Applied requires a follow-up date; Interview cards show the date and any
-  prep notes.
-- **Kit Studio**: the per-role kit (tailored CV, cover letter, talking
-  points, gap-handling note) with a draft/needs-edit/approved status.
-- **Settings**: target titles, locations, must-haves, deal-breakers, min
-  match cutoff, seniority, master CV (paste or upload a PDF), voice guide,
-  proof points, and a maintenance panel (re-score all jobs against current
-  filters, clear the board, export your data as JSON, send a test digest).
-- **Automated scan**: runs 3x a day via a GitHub Actions schedule for every
-  account with target titles set, same logic as the "Scan now" button.
-  Vercel's own cron can't run more than once a day on the Hobby plan, so
-  this uses GitHub Actions instead. No action needed beyond setting target
-  titles in Settings.
-- **Digest**: an optional daily email of new matches above your cutoff, via
-  Resend, triggered by Vercel Cron.
+This is a static HTML portfolio, no build step, no framework, no dependencies. All markup, styles, and scripts live in `index.html`.
 
-## Stack
+The site covers:
 
-- Next.js 14.2.35 (App Router) on Vercel. Pinned to the 14.x line (patched:
-  14.2.5 and earlier have a known RSC RCE, fixed in 14.2.35) because
-  `cookies()`/`headers()` are still synchronous there, which keeps the
-  Supabase server client simple. Next.js 15/16 made these async; upgrading
-  later means `lib/supabase/server.ts` and `middleware.ts` both need
-  `await cookies()`.
-- Supabase: Postgres, magic-link auth, row-level security on every table.
-- Groq: free LLM for per-role scoring, CV tailoring, and cover letters.
-- A cheap keyword-based scorer (`lib/scan/score.ts`) runs on every scanned
-  or pasted job before any LLM call, so Groq is only spent on roles you
-  actually open.
-- `@react-pdf/renderer` for ATS-safe single-column PDF export.
-- `pdf-parse` for extracting text from an uploaded CV PDF.
-- Resend for the daily digest email.
+- **About**: background, current focus, and core stats
+- **What I Do**: 6 core skill areas, from web development to content writing
+- **My Work**: a hub with five in-page views:
+  - **Content Writing**: published threads and articles
+  - **AI Video Content**: produced video work
+  - **Live Sites**: shipped projects with live previews, tech stack, and repo links
+  - **Research & Docs**: sourced research documents
+  - **Ambassador Work**: content collaborations with VIZO Exchange, Ozak AI, and MegPrimePay
+- **Contact**: email, X, Telegram, LinkedIn, and Discord
 
-## Setup
+## Features
 
-1. **Supabase project**
-   - Create a free project at supabase.com
-   - Run `supabase/schema.sql` in the SQL editor
-   - Email auth with magic link is on by default, but Supabase's built-in
-     email sender caps out at 2 emails/day, which isn't enough for real use.
-     Under Authentication → SMTP Settings, enable custom SMTP with Resend
-     (host `smtp.resend.com`, port 465, username `resend`, password your
-     Resend API key) to raise that to 100/day for free
-   - Copy the Project URL and anon key from Settings → API
-   - Copy the service role key too (Settings → API, the secret one), needed
-     for the digest and automated scan
+- Light/dark theme toggle (preference saved locally)
+- In-page navigation between sections without full page reloads
+- CV download link, in the header on desktop and in the mobile menu on smaller screens
+- Fully responsive, including a dedicated mobile menu
+- Scroll-triggered animations, respecting the "reduce motion" accessibility setting for larger entrance effects
 
-2. **Groq key**: free, no card, from console.groq.com/keys
+## Tech Stack
 
-3. **Adzuna key**: free, no card, from developer.adzuna.com/signup (app_id
-   and app_key)
+- HTML5, CSS3, vanilla JavaScript
+- Google Fonts (Space Grotesk, IBM Plex Mono, Inter)
+- No build tools, no package manager required
 
-4. **Resend key**: free, from resend.com, used for both the daily digest
-   email and the SMTP fix above
+## Files
 
-5. **Environment**
-   ```bash
-   cp .env.example .env.local
-   # fill in every value in .env.example
-   ```
+- `index.html`: the site itself
+- `cv.pdf`: linked from the CV button in the nav
+- `README.md`: this file
 
-6. **Install and run**
-   ```bash
-   npm install
-   npm run dev
-   ```
-   Visit http://localhost:3000. You'll be redirected to `/login`, sign in
-   with the magic link sent to your email, then land on the four-step setup.
+## Deployment
 
-## Deploy
+This is a static site, so it can be deployed anywhere that serves static files. Upload `index.html` and `cv.pdf` together, in the same folder, since the CV button links to `cv.pdf` by a relative path and will break if it's missing.
 
-`npx vercel --prod`, or push to GitHub and import into Vercel. Add every
-variable from `.env.example` in the project's Environment Variables
-settings, including `CRON_SECRET`, a secret string you make up yourself.
-Unlike the digest (called by Vercel's own trusted cron), the scan endpoint
-is called from GitHub Actions over the public internet, so `CRON_SECRET`
-actually needs to be set this time, not left optional.
+- **Netlify Drop**: drag and drop the folder at [app.netlify.com/drop](https://app.netlify.com/drop)
+- **Vercel**: create a project and upload the folder
+- **GitHub Pages**: push the files to this repo, then enable Pages in Settings > Pages, pointing to the main branch
 
-`vercel.json` schedules the digest at 8am UTC, after the automated scan
-(below) has had a chance to run, so there's something fresh to report.
+No build command or install step is needed. `index.html` just needs to stay named that so it's served as the homepage.
 
-### Automated scanning (3x/day)
+## Local Preview
 
-Vercel's Hobby plan caps cron at once a day, not enough for 3x/day, so
-scanning runs via a GitHub Actions schedule instead
-(`.github/workflows/scan.yml`), against the `maleekskies/huntboard` repo:
+Open `index.html` directly in any browser. No server required.
 
-1. Upload the full contents of this project to the GitHub repo the same
-   way you already deploy: on the repo's page, "Add file" → "Upload files",
-   drag everything in, commit to `main`. Vercel picks it up and redeploys
-   automatically.
-2. Add `CRON_SECRET` as an env var on Vercel (Settings → Environment
-   Variables, any secret string you make up)
-3. On the repo's GitHub page: Settings → Secrets and variables → Actions
-   → New repository secret. Name it `CRON_SECRET`, paste the exact same
-   value from step 2
-4. Open the repo's Actions tab, click "Scan job boards" on the left, then
-   "Run workflow" to fire it once manually and confirm it works
+## Contact
 
-After that it runs on its own at 6am, 1pm, and 8pm UTC daily.
-
-## Non-negotiable rules (baked into the prompts, not just docs)
-
-1. Never invent experience, titles, dates, metrics, or employers. The
-   prompts in `lib/llm/prompts.ts` say this explicitly and are grounded only
-   in `profile.master_cv_text`.
-2. Tailoring means reordering and rephrasing real facts, never fabrication.
-3. Every kit stores a `facts_used` audit list, shown on the job detail page.
-4. Applying is always manual. "Open official apply page" opens the real URL;
-   there is no submit button anywhere in this app.
-5. Your CV and cover letters live in your own Supabase project. The only
-   third party that sees them is Groq, at generation time.
-
-## What's not built
-
-- The job detail page is a full page, not a slide-out drawer.
-- The tailored CV shown in Kit Studio is reordered and rephrased, not a
-  true line-level diff against the master CV.
-- Kanban drag-and-drop; status changes happen from a dropdown on the job
-  page.
-- Company-specific ATS integrations (Greenhouse, Lever, Ashby job boards).
+- Email: maleekskies@gmail.com
+- X: [@maleekskies](https://x.com/maleekskies)
+- Telegram: [@maleekskies](https://t.me/maleekskies)
+- LinkedIn: [maleekskies](https://www.linkedin.com/in/maleekskies/)
+- Discord: @maleekskies (copy the handle from the site, Discord doesn't support a direct profile link by username alone)
