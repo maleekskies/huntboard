@@ -4,26 +4,30 @@ import { useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 
 export default function LoginPage() {
+  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [email, setEmail] = useState('');
-  const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
+  const [password, setPassword] = useState('');
+  const [status, setStatus] = useState<'idle' | 'busy' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setStatus('sending');
+    setStatus('busy');
+    setErrorMessage(null);
     const supabase = createClient();
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
-      },
-    });
+
+    const { error } =
+      mode === 'signup'
+        ? await supabase.auth.signUp({ email, password })
+        : await supabase.auth.signInWithPassword({ email, password });
+
     if (error) {
       setStatus('error');
       setErrorMessage(error.message);
-    } else {
-      setStatus('sent');
+      return;
     }
+
+    window.location.href = '/';
   }
 
   return (
@@ -39,34 +43,62 @@ export default function LoginPage() {
           <Fact label="Send" text="You approve the kit." />
         </ul>
 
-        {status === 'sent' ? (
-          <div className="bg-surface border border-border rounded-lg p-4">
-            <p className="text-text">
-              Check <span className="text-accent">{email}</span> for the sign-in link.
-            </p>
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-            <input
-              type="email"
-              required
-              placeholder="you@email.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="bg-surface border border-border rounded px-4 py-3 text-text placeholder:text-muted focus:outline-none focus:border-accent"
-            />
-            <button
-              type="submit"
-              disabled={status === 'sending'}
-              className="grad-bg text-bg font-medium rounded px-4 py-3 hover:opacity-90 transition-colors disabled:opacity-50"
-            >
-              {status === 'sending' ? 'Sending…' : 'Send magic link'}
-            </button>
-            {status === 'error' && errorMessage && (
-              <p className="text-danger text-sm">{errorMessage}</p>
-            )}
-          </form>
-        )}
+        <div className="flex gap-1 mb-4 bg-surface border border-border rounded-lg p-1">
+          <button
+            type="button"
+            onClick={() => {
+              setMode('signin');
+              setErrorMessage(null);
+            }}
+            className={`flex-1 text-sm py-2 rounded ${mode === 'signin' ? 'grad-bg text-bg font-medium' : 'text-muted'}`}
+          >
+            Sign in
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setMode('signup');
+              setErrorMessage(null);
+            }}
+            className={`flex-1 text-sm py-2 rounded ${mode === 'signup' ? 'grad-bg text-bg font-medium' : 'text-muted'}`}
+          >
+            Create account
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+          <input
+            type="email"
+            required
+            placeholder="you@email.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="bg-surface border border-border rounded px-4 py-3 text-text placeholder:text-muted focus:outline-none focus:border-accent"
+          />
+          <input
+            type="password"
+            required
+            minLength={6}
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="bg-surface border border-border rounded px-4 py-3 text-text placeholder:text-muted focus:outline-none focus:border-accent"
+          />
+          <button
+            type="submit"
+            disabled={status === 'busy'}
+            className="grad-bg text-bg font-medium rounded px-4 py-3 hover:opacity-90 transition-colors disabled:opacity-50"
+          >
+            {status === 'busy'
+              ? mode === 'signup'
+                ? 'Creating account…'
+                : 'Signing in…'
+              : mode === 'signup'
+                ? 'Create account'
+                : 'Sign in'}
+          </button>
+          {status === 'error' && errorMessage && <p className="text-danger text-sm">{errorMessage}</p>}
+        </form>
 
         <div className="mt-8 pt-6 border-t border-border">
           <p className="text-xs text-muted uppercase tracking-wide mb-3">What happens after sign-in</p>
