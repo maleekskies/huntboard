@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /login
+Disallow: /
+Disallow: /pipeline
+Disallow: /kit-studio
+Disallow: /settings
+Disallow: /onboarding
+Disallow: /jobs/
+
+Sitemap: https://huntboard-nu.vercel.app/sitemap.xml
